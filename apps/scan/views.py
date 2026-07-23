@@ -61,6 +61,10 @@ def scan_trigger(request):
                 gateway=r['gateway'],
                 router=r['router'],
                 dns=r['dns'],
+                mac_address=r.get('mac_address'),
+                latency_ms=r.get('latency_ms'),
+                open_ports=r.get('open_ports'),
+                services=r.get('services'),
             )
             added += 1
         messages.success(request, f'Scan completed. {added} live host(s) discovered.')

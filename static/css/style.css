@@ -221,3 +221,25 @@ a:hover { text-decoration: underline; }
 .status-online { color: var(--success); border-color: rgba(16,185,129,0.25); background: rgba(16,185,129,0.08); }
 .status-warn { color: var(--warn); border-color: rgba(245,158,11,0.25); background: rgba(245,158,11,0.08); }
 .status-danger { color: var(--danger); border-color: rgba(239,68,68,0.25); background: rgba(239,68,68,0.08); }
+
+.scan-detail { display: flex; flex-direction: column; gap: 1.25rem; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+.detail-card { background: var(--bg-elevated); border: 1px solid var(--border-default); border-radius: var(--radius); padding: 1.25rem; box-shadow: 0 1px 0 rgba(255,255,255,0.02); }
+.detail-title { color: var(--text-secondary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+.detail-row { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border-subtle); }
+.detail-row:last-child { border-bottom: none; }
+.detail-label { color: var(--text-secondary); font-size: 0.85rem; }
+.detail-value { color: var(--text-primary); font-weight: 600; font-size: 0.9rem; text-align: right; max-width: 60%; word-break: break-all; }
+
+.meta-card { max-width: 640px; }
+
+.table-wrapper { overflow-x: auto; }
+.ports-table { width: 100%; border-collapse: collapse; }
+.ports-table th, .ports-table td { padding: 0.65rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border-default); font-size: 0.9rem; }
+.ports-table th { color: var(--text-secondary); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; background: rgba(255,255,255,0.02); }
+.port-number { font-family: var(--font-mono); color: var(--accent); font-weight: 700; }
+.port-service { font-family: var(--font-mono); color: var(--text-primary); }
+.port-risk { font-weight: 700; }
+.risk-high { color: var(--danger); }
+.risk-medium { color: var(--warn); }
+.risk-low { color: var(--success); }
