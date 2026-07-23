@@ -24,45 +24,36 @@
         <p class="db-subtitle">Tables in database: <code>{{ db_vendor }}</code></p>
 
         {% if tables %}
+        <form method="post" id="global-action-form" class="global-actions-bar">
+            {% csrf_token %}
+            <input type="checkbox" id="select-all" onchange="toggleAll(this)">
+            <span id="selected-count"></span>
+            <input type="hidden" name="action" value="" id="global-action-input">
+            <button type="button" class="btn-small btn-primary-small" onclick="submitGlobalAction('vacuum')">VACUUM FULL</button>
+            <button type="button" class="btn-small" onclick="submitGlobalAction('reindex')">Reindex</button>
+            <button type="button" class="btn-small" onclick="submitGlobalAction('indexes')">Indexes</button>
+        </form>
         <div class="table-wrapper">
             <table class="hacker-table">
                 <thead>
                     <tr>
-                        <th>Table Name</th>
-                        <th>Actions</th>
-                        <th>Vacuum Status</th>
-                        <th>Index Status</th>
-                        <th>Rebuild Status</th>
-                        <th>Records</th>
-                        <th>Size</th>
-                        <th>Last Maintenance</th>
-                        <th>Actions</th>
-                    </tr>
+                            <th class="select-col"></th>
+                            <th>Table Name</th>
+                            <th>Vacuum Status</th>
+                            <th>Index Status</th>
+                            <th>Rebuild Status</th>
+                            <th>Records</th>
+                            <th>Size</th>
+                            <th>Last Maintenance</th>
+                        </tr>
                 </thead>
                 <tbody>
                     {% for row in tables %}
                     <tr>
-                        <td><code>{{ row.table_name }}</code></td>
-                        <td class="actions">
-                            <form method="post" class="db-inline-form">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="vacuum">
-                                <input type="hidden" name="table_name" value="{{ row.table_name }}">
-                                <button type="submit" class="btn-small btn-primary-small">VACUUM FULL</button>
-                            </form>
-                            <form method="post" class="db-inline-form">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="reindex">
-                                <input type="hidden" name="table_name" value="{{ row.table_name }}">
-                                <button type="submit" class="btn-small">Reindex</button>
-                            </form>
-                            <form method="post" class="db-inline-form">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="indexes">
-                                <input type="hidden" name="table_name" value="{{ row.table_name }}">
-                                <button type="submit" class="btn-small">Indexes</button>
-                            </form>
+                        <td class="select-col">
+                            <input type="checkbox" name="selected_tables" value="{{ row.table_name }}" class="table-checkbox" onchange="updateGlobalActions()">
                         </td>
+                        <td><code>{{ row.table_name }}</code></td>
                         <td>
                             <span class="status-pill {% if row.vacuum_status == 'Done' %}status-online{% endif %}">
                                 {{ row.vacuum_status }}
@@ -91,4 +82,41 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+function toggleAll(source) {
+    const checkboxes = document.querySelectorAll('.table-checkbox');
+    checkboxes.forEach(cb => cb.checked = source.checked);
+    updateGlobalActions();
+}
+
+function updateGlobalActions() {
+    const selected = document.querySelectorAll('.table-checkbox:checked');
+    const count = document.getElementById('selected-count');
+    if (count) {
+        if (selected.length > 0) {
+            count.textContent = selected.length + ' table' + (selected.length > 1 ? 's' : '') + ' selected';
+            count.style.display = 'inline';
+        } else {
+            count.style.display = 'none';
+        }
+    }
+}
+
+function submitGlobalAction(action) {
+    const selected = Array.from(document.querySelectorAll('.table-checkbox:checked')).map(cb => cb.value);
+    if (selected.length === 0) return;
+    const form = document.getElementById('global-action-form');
+    form.querySelectorAll('input[name="selected_tables"]').forEach(i => i.remove());
+    document.getElementById('global-action-input').value = action;
+    selected.forEach(name => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'selected_tables';
+        input.value = name;
+        form.appendChild(input);
+    });
+    form.submit();
+}
+</script>
 {% endblock %}

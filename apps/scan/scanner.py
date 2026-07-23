@@ -1,4 +1,5 @@
 import ipaddress
+import re
 import socket
 import subprocess
 import time
@@ -179,6 +180,22 @@ def measure_latency(ip, ports):
             pass
     return last
 
+def ping_host(ip):
+    try:
+        out = subprocess.check_output(
+            ['ping', '-c', '1', '-W', '1000', str(ip)],
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=2,
+        )
+        ttl = None
+        m = re.search(r'ttl=(\d+)', out, re.IGNORECASE)
+        if m:
+            ttl = int(m.group(1))
+        return True, ttl
+    except Exception:
+        return False, None
+
 def scan_host(ip, ports=(22, 80, 443, 445, 139, 3389, 53, 5353, 5900, 631, 5000, 7000, 548, 3306, 5432, 6379, 2375, 9200)):
     open_ports = []
     hostname = None
@@ -302,9 +319,74 @@ def guess_brand(hostname, mac, services):
             return 'Web Server'
         if 'SSH' in svc_set:
             return 'Linux/Embedded'
-        if {'SMB','NetBIOS'} <= svc_set:
-            return 'Windows PC'
+    if {'SMB','NetBIOS'} <= svc_set:
+        return 'Windows PC'
     return 'Unknown'
+
+def guess_os_from_ttl(ttl):
+    if ttl is None:
+        return 'Unknown'
+    if ttl <= 64:
+        return 'Linux/Unix/Android'
+    if ttl <= 128:
+        return 'Windows'
+    if ttl <= 255:
+        return 'Network/Embedded'
+    return 'Unknown'
+
+def guess_device_from_fallback(hostname, mac, ttl, brand):
+    hn = (hostname or '').lower()
+    mac_vendor = mac_to_vendor(mac) if mac else 'Unknown'
+
+    if hn:
+        if 'router' in hn or 'gateway' in hn or 'gw ' in hn or hn.endswith('.gw'):
+            return 'Router'
+        if 'switch' in hn:
+            return 'Switch'
+        if 'server' in hn or 'srv' in hn:
+            return 'Server'
+        if 'pc-' in hn or 'laptop' in hn or 'macbook' in hn or 'imac' in hn or 'desktop' in hn:
+            return 'PC'
+        if 'phone' in hn or 'iphone' in hn or 'android' in hn or 'galaxy' in hn:
+            return 'Phone'
+        if 'printer' in hn:
+            return 'Printer'
+        if 'firewall' in hn or 'fw' in hn:
+            return 'Firewall'
+        if 'ap' in hn or 'access-point' in hn or 'wifi' in hn:
+            return 'Access Point'
+        if 'nas' in hn or 'storage' in hn:
+            return 'NAS'
+        if 'iot' in hn:
+            return 'IoT'
+
+    if brand and brand != 'Unknown':
+        bl = brand.lower()
+        if any(x in bl for x in ['cisco', 'ubiquiti', 'mikrotik', 'netgear', 'tp-link', 'asus', 'juniper']):
+            return 'Network Device'
+        if any(x in bl for x in ['apple', 'samsung', 'xiaomi', 'huawei', 'oppo', 'realme', 'vivo', 'nokia', 'sony', 'lg', 'motorola']):
+            return 'Phone/Tablet'
+        if any(x in bl for x in ['dell', 'hp', 'lenovo']):
+            return 'PC'
+
+    if mac_vendor and mac_vendor != 'Unknown':
+        mv = mac_vendor.lower()
+        if any(x in mv for x in ['cisco', 'ubiquiti', 'mikrotik', 'netgear', 'tp-link', 'asus']):
+            return 'Network Device'
+        if any(x in mv for x in ['apple', 'samsung', 'xiaomi', 'huawei', 'oppo', 'realme', 'vivo', 'nokia', 'sony', 'lg', 'motorola']):
+            return 'Phone/Tablet'
+        if any(x in mv for x in ['dell', 'hp', 'lenovo']):
+            return 'PC'
+
+    if ttl is not None:
+        if ttl <= 64:
+            return 'Linux/Android/iOS Device'
+        if ttl <= 128:
+            return 'Windows Device'
+        if ttl <= 255:
+            return 'Network/Embedded Device'
+
+    return 'Active Host'
 
 def scan_network(subnet=None, max_hosts=254, max_workers=120):
     iface_name, ip_addr, netmask = get_active_interface()
@@ -321,26 +403,52 @@ def scan_network(subnet=None, max_hosts=254, max_workers=120):
     dns_servers = get_dns_servers()
     gateway_ip = gateway or str(net.network_address + 1)
 
+    alive_ips = set()
+    alive_with_ttl = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(ping_host, ip): ip for ip in hosts}
+        for future in as_completed(futures):
+            ip = futures[future]
+            is_alive, ttl = future.result()
+            if is_alive:
+                alive_ips.add(str(ip))
+                alive_with_ttl[str(ip)] = ttl
+
     results = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(scan_host, ip): ip for ip in hosts}
         for future in as_completed(futures):
             res = future.result()
-            if res['open_ports']:
-                device = guess_device_from_hostname(res['hostname'], res['open_ports'])
-                os_name = guess_os_from_ports(res['open_ports'], res['hostname'])
-                brand = guess_brand(res['hostname'], res['mac_address'], res['services'])
-                results.append({
-                    'ip': res['ip'],
-                    'device': device,
-                    'os': os_name,
-                    'brand': brand,
-                    'gateway': gateway_ip,
-                    'router': gateway_ip,
-                    'dns': dns_servers[0] if dns_servers else None,
-                    'mac_address': res['mac_address'],
-                    'latency_ms': res['latency_ms'],
-                    'open_ports': res['open_ports'],
-                    'services': res['services'],
-                })
+            ip_str = res['ip']
+            if ip_str not in alive_ips:
+                continue
+
+            hostname = res['hostname']
+            mac = res['mac_address']
+            ports = res['open_ports']
+            services = res['services']
+            latency_ms = res['latency_ms']
+            ttl = alive_with_ttl.get(ip_str)
+            brand = guess_brand(hostname, mac, services)
+
+            if ports:
+                device = guess_device_from_hostname(hostname, ports)
+                os_name = guess_os_from_ports(ports, hostname)
+            else:
+                device = guess_device_from_fallback(hostname, mac, ttl, brand)
+                os_name = guess_os_from_ttl(ttl)
+
+            results.append({
+                'ip': ip_str,
+                'device': device,
+                'os': os_name,
+                'brand': brand,
+                'gateway': gateway_ip,
+                'router': gateway_ip,
+                'dns': dns_servers[0] if dns_servers else None,
+                'mac_address': mac,
+                'latency_ms': latency_ms,
+                'open_ports': ports,
+                'services': services,
+            })
     return results

@@ -21,9 +21,11 @@
         <div class="chart-box">
             <h2>Legend</h2>
             <div class="legend-list">
+                <div class="legend-item"><span class="legend-dot" style="background:#60a5fa;box-shadow:0 0 8px #60a5fa;"></span><span>ISP / Internet</span></div>
                 <div class="legend-item"><span class="legend-dot" style="background:#22c55e;box-shadow:0 0 8px #22c55e;"></span><span>Gateway</span></div>
                 <div class="legend-item"><span class="legend-dot" style="background:#facc15;box-shadow:0 0 8px #facc15;"></span><span>Device</span></div>
-                <div class="legend-item"><span class="legend-line" style="background:#22c55e;box-shadow:0 0 6px #22c55e;"></span><span>Connection</span></div>
+                <div class="legend-item"><span class="legend-line" style="background:#60a5fa;box-shadow:0 0 6px #60a5fa;"></span><span>WAN Link</span></div>
+                <div class="legend-item"><span class="legend-line" style="background:#22c55e;box-shadow:0 0 6px #22c55e;"></span><span>LAN Link</span></div>
             </div>
         </div>
         <div class="chart-box">
@@ -59,12 +61,12 @@ const options = {
     edges: {
         width: 1.5,
         color: { color: '#22c55e', highlight: '#facc15', opacity: 0.8 },
-        arrows: { to: { enabled: true, scaleFactor: 0.6 } },
         smooth: { type: 'continuous', roundness: 0.5 }
     },
     physics: {
+        enabled: true,
         stabilization: true,
-        barnesHut: { gravitationalConstant: -2800, springLength: 140, springConstant: 0.04 }
+        barnesHut: { gravitationalConstant: -3000, springLength: 160, springConstant: 0.04, centralGravity: 0.3 }
     },
     interaction: { hover: true, tooltipDelay: 80 }
 };

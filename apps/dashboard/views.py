@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
@@ -53,13 +54,34 @@ def network_map(request):
     total = scans.count()
     online = scans.filter(open_ports__isnull=False).exclude(open_ports=[]).count()
     gateway_ip = scans.filter(gateway__isnull=False).values_list('gateway', flat=True).first()
-    gateway_id = 0
-    nodes = []
+
+    ISP_ID = -2
+    GATEWAY_ID = -1
+
+    nodes = [
+        {
+            'id': ISP_ID,
+            'label': 'ISP',
+            'title': 'Internet Service Provider',
+            'shape': 'icon',
+            'icon': { 'face': 'FontAwesome', 'code': '\uf0c2', 'size': 50, 'color': '#60a5fa' },
+            'font': { 'color': '#93c5fd', 'size': 13, 'face': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
+        },
+    ]
     edges = []
+
+    gateway_node = None
     for scan in scans:
         is_gateway = scan.gateway and str(scan.gateway) == str(gateway_ip)
         if is_gateway:
-            gateway_id = scan.id
+            gateway_node = {
+                'id': GATEWAY_ID,
+                'label': f"Gateway\n{gateway_ip}",
+                'title': f"Gateway Router\nOS: {scan.os}\nBrand: {scan.brand or 'Unknown'}",
+                'shape': 'icon',
+                'icon': { 'face': 'FontAwesome', 'code': '\uf6ff', 'size': 50, 'color': '#22c55e' },
+                'font': { 'color': '#22c55e', 'size': 13, 'face': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
+            }
         nodes.append({
             'id': scan.id,
             'label': f"{scan.ip}\n{scan.device}",
@@ -68,18 +90,45 @@ def network_map(request):
             'font': { 'color': '#e5e7eb', 'size': 12 }
         })
         if scan.gateway and not is_gateway:
-            edges.append({'from': scan.id, 'to': gateway_id or 0, 'arrows': 'to', 'color': { 'color': '#22c55e', 'highlight': '#facc15' }})
-    if gateway_id == 0 and scans.exists():
-        nodes.insert(0, {
-            'id': 0,
+            edges.append({
+                'from': scan.id, 'to': GATEWAY_ID,
+                'color': { 'color': '#22c55e', 'highlight': '#facc15' }
+            })
+
+    if gateway_node:
+        nodes[0] = gateway_node
+
+    if not gateway_node:
+        nodes.insert(1, {
+            'id': GATEWAY_ID,
             'label': f"Gateway\n{gateway_ip or '192.168.1.1'}",
             'title': 'Gateway Router',
-            'color': '#22c55e',
-            'font': { 'color': '#e5e7eb', 'size': 13 }
+            'shape': 'icon',
+            'icon': { 'face': 'FontAwesome', 'code': '\uf6ff', 'size': 50, 'color': '#22c55e' },
+            'font': { 'color': '#22c55e', 'size': 13, 'face': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
         })
         for scan in scans:
-            if scan.id != 0:
-                edges.append({'from': scan.id, 'to': 0, 'arrows': 'to', 'color': { 'color': '#22c55e', 'highlight': '#facc15' }})
+            edges.append({
+                'from': scan.id, 'to': GATEWAY_ID,
+                'color': { 'color': '#22c55e', 'highlight': '#facc15' }
+            })
+
+    if gateway_node:
+        edges.append({
+            'from': ISP_ID, 'to': GATEWAY_ID,
+            'color': { 'color': '#60a5fa', 'highlight': '#93c5fd' }
+        })
+    else:
+        edges.append({
+            'from': ISP_ID, 'to': GATEWAY_ID,
+            'color': { 'color': '#60a5fa', 'highlight': '#93c5fd' }
+        })
+        for scan in scans:
+            edges.append({
+                'from': scan.id, 'to': GATEWAY_ID,
+                'color': { 'color': '#22c55e', 'highlight': '#facc15' }
+            })
+
     networks = {'nodes': nodes, 'edges': edges}
     return render(request, 'network_map.html', {
         'networks': json.dumps(networks),
@@ -88,8 +137,6 @@ def network_map(request):
         'gateway_ip': gateway_ip or '192.168.1.1',
         'scans': scans,
     })
-
-from datetime import datetime
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -141,40 +188,53 @@ def db_maintenance(request):
 
     if request.method == 'POST':
         action = request.POST.get('action')
-        table_name = request.POST.get('table_name')
-        if action == 'vacuum' and table_name:
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute(f'VACUUM FULL {table_name};')
-                record, _ = DbMaintenance.objects.get_or_create(table_name=table_name)
-                record.vacuum_status = 'Done'
-                record.last_maintenance = datetime.now()
-                record.save()
-                message = f'VACUUM FULL completed on {table_name}.'
-            except Exception as e:
-                error = str(e)
-        elif action == 'reindex' and table_name:
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute(f'REINDEX TABLE {table_name};')
-                record, _ = DbMaintenance.objects.get_or_create(table_name=table_name)
-                record.rebuild_status = 'Done'
-                record.last_maintenance = datetime.now()
-                record.save()
-                message = f'Reindex completed on {table_name}.'
-            except Exception as e:
-                error = str(e)
-        elif action == 'indexes' and table_name:
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute(f'REINDEX TABLE {table_name};')
-                record, _ = DbMaintenance.objects.get_or_create(table_name=table_name)
-                record.index_status = 'Done'
-                record.last_maintenance = datetime.now()
-                record.save()
-                message = f'Index rebuilt on {table_name}.'
-            except Exception as e:
-                error = str(e)
+        selected_tables = request.POST.getlist('selected_tables')
+        single_table = request.POST.get('table_name')
+
+        tables_to_process = selected_tables if selected_tables else ([single_table] if single_table else [])
+
+        for table_name in tables_to_process:
+            if action == 'vacuum':
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute(f'VACUUM FULL {table_name};')
+                    record, _ = DbMaintenance.objects.get_or_create(table_name=table_name)
+                    record.vacuum_status = 'Done'
+                    record.last_maintenance = datetime.now()
+                    record.save()
+                    message = f'VACUUM FULL completed on {table_name}.' if not message else message
+                except Exception as e:
+                    error = str(e)
+            elif action == 'reindex':
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute(f'REINDEX TABLE {table_name};')
+                    record, _ = DbMaintenance.objects.get_or_create(table_name=table_name)
+                    record.rebuild_status = 'Done'
+                    record.last_maintenance = datetime.now()
+                    record.save()
+                    message = f'Reindex completed on {table_name}.' if not message else message
+                except Exception as e:
+                    error = str(e)
+            elif action == 'indexes':
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute(f'REINDEX TABLE {table_name};')
+                    record, _ = DbMaintenance.objects.get_or_create(table_name=table_name)
+                    record.index_status = 'Done'
+                    record.last_maintenance = datetime.now()
+                    record.save()
+                    message = f'Index rebuilt on {table_name}.' if not message else message
+                except Exception as e:
+                    error = str(e)
+
+        if len(tables_to_process) > 1:
+            if action == 'vacuum':
+                message = f'VACUUM FULL completed on {len(tables_to_process)} tables.'
+            elif action == 'reindex':
+                message = f'Reindex completed on {len(tables_to_process)} tables.'
+            elif action == 'indexes':
+                message = f'Index rebuilt on {len(tables_to_process)} tables.'
 
     for table in tables:
         record, _ = DbMaintenance.objects.get_or_create(table_name=table)
