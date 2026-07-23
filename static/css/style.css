@@ -186,29 +186,30 @@ a:hover { text-decoration: underline; }
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
 }
 .card {
     background: var(--bg-elevated);
     border: 1px solid var(--border-default);
     border-radius: var(--radius);
-    padding: 1.25rem;
+    padding: 1rem;
     box-shadow: 0 1px 0 rgba(255,255,255,0.02);
 }
-.card-header { color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
-.card-body { font-size: 1.6rem; color: var(--text-primary); font-weight: 700; margin-top: 0.4rem; font-family: var(--font-mono); }
+.card-header { color: var(--text-secondary); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+.card-body { font-size: 1.35rem; color: var(--text-primary); font-weight: 700; margin-top: 0.35rem; font-family: var(--font-mono); }
 
-.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 2rem; }
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
 .chart-box {
     background: var(--bg-elevated);
     border: 1px solid var(--border-default);
     border-radius: var(--radius);
-    padding: 1.25rem;
+    padding: 1rem;
     box-shadow: 0 1px 0 rgba(255,255,255,0.02);
 }
-.chart-box h2 { color: var(--text-primary); margin-bottom: 1rem; font-size: 0.95rem; font-weight: 700; }
+.chart-box h2 { color: var(--text-primary); margin-bottom: 0.75rem; font-size: 0.85rem; font-weight: 700; }
+.chart-box--compact .chart-wrap { position: relative; height: 220px; }
 
 .recent-section h2 { color: var(--text-primary); margin-bottom: 1rem; font-size: 1rem; font-weight: 700; }
 .detail-card { max-width: 640px; margin: 0 auto; padding: 2rem; background: var(--bg-elevated); border: 1px solid var(--border-default); border-radius: var(--radius); box-shadow: var(--shadow-glow); }
@@ -243,3 +244,21 @@ a:hover { text-decoration: underline; }
 .risk-high { color: var(--danger); }
 .risk-medium { color: var(--warn); }
 .risk-low { color: var(--success); }
+
+.pagination { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0.5rem; }
+.pagination-info { color: var(--text-muted); font-size: 0.8rem; }
+.pagination-actions { display: flex; gap: 0.5rem; }
+.btn-pagination {
+    background: transparent;
+    color: var(--accent-strong);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: 0.35rem 0.65rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    text-decoration: none;
+}
+.btn-pagination:hover { background: rgba(34,211,238,0.08); border-color: var(--accent-strong); text-decoration: none; }

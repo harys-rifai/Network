@@ -3,9 +3,14 @@ from django import template
 register = template.Library()
 
 @register.filter
-def get_item(dictionary, key):
-    if isinstance(dictionary, dict):
-        return dictionary.get(key)
+def get_item(container, key):
+    if isinstance(container, dict):
+        return container.get(str(key))
+    if isinstance(container, list):
+        try:
+            return container[int(key)]
+        except (IndexError, ValueError):
+            return None
     return None
 
 @register.filter
@@ -16,9 +21,9 @@ def port_risk(port):
     try:
         p = int(port)
     except (TypeError, ValueError):
-        return 'risk-low'
+        return 'Low'
     if p in high:
-        return 'risk-high'
+        return 'High'
     if p in medium:
-        return 'risk-medium'
-    return 'risk-low'
+        return 'Medium'
+    return 'Low'

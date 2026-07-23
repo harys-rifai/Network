@@ -2,6 +2,7 @@ import json
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
+from django.core.paginator import Paginator
 from apps.scan.models import Scan
 
 @login_required
@@ -9,7 +10,7 @@ def dashboard(request):
     total_devices = Scan.objects.count()
     os_stats = Scan.objects.values('os').annotate(count=Count('id')).order_by('-count')
     brand_stats = Scan.objects.values('brand').annotate(count=Count('id')).order_by('-count')
-    recent_scans = Scan.objects.all()[:10]
+    recent_page = Paginator(Scan.objects.all(), 10).get_page(request.GET.get('page', 1))
 
     os_labels = [item['os'] for item in os_stats]
     os_data = [item['count'] for item in os_stats]
@@ -20,7 +21,8 @@ def dashboard(request):
         'total_devices': total_devices,
         'os_stats': os_stats,
         'brand_stats': brand_stats,
-        'recent_scans': recent_scans,
+        'recent_scans': recent_page,
+        'page_obj': recent_page,
         'os_labels': json.dumps(os_labels),
         'os_data': json.dumps(os_data),
         'brand_labels': json.dumps(brand_labels),

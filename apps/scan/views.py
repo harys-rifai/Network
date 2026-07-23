@@ -2,14 +2,17 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count
+from django.core.paginator import Paginator
 import ipaddress
 from .models import Scan
 from .scanner import scan_network, get_active_interface
 
 @login_required
 def scan_list(request):
-    scans = Scan.objects.all()
-    return render(request, 'scan_list.html', {'scans': scans})
+    page_number = request.GET.get('page', 1)
+    paginator = Paginator(Scan.objects.all(), 10)
+    page_obj = paginator.get_page(page_number)
+    return render(request, 'scan_list.html', {'page_obj': page_obj})
 
 @login_required
 def scan_detail(request, pk):
@@ -53,6 +56,7 @@ def scan_trigger(request):
             return redirect('scan_trigger')
         added = 0
         for r in results:
+            services_dict = dict(zip(r.get('open_ports', []), r.get('services', []))) if r.get('open_ports') else None
             Scan.objects.create(
                 ip=r['ip'],
                 device=r['device'],
@@ -64,7 +68,7 @@ def scan_trigger(request):
                 mac_address=r.get('mac_address'),
                 latency_ms=r.get('latency_ms'),
                 open_ports=r.get('open_ports'),
-                services=r.get('services'),
+                services=services_dict,
             )
             added += 1
         messages.success(request, f'Scan completed. {added} live host(s) discovered.')

@@ -15,10 +15,12 @@ stop_server() {
 
 start_server() {
     echo "Starting Django server..."
-    python3 manage.py runserver
+    exec python3 manage.py runserver
 }
 
-case "$1" in
+ACTION="${1:-start}"
+
+case "$ACTION" in
     stop)
         stop_server
         ;;
@@ -27,7 +29,6 @@ case "$1" in
         ;;
     restart)
         stop_server
-        sleep 1
         start_server
         ;;
     *)

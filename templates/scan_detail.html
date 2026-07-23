@@ -35,12 +35,12 @@
                 </thead>
                 <tbody>
                     {% for port in scan.open_ports %}
-                    {% with service=scan.services|get_item:port %}
+                    {% with risk=port|port_risk %}
                     <tr>
                         <td class="port-number">{{ port }}</td>
-                        <td class="port-service">{{ service|default:"unknown" }}</td>
+                        <td class="port-service">{{ scan.services|get_item:port|default:"unknown" }}</td>
                         <td><span class="status-pill status-online">Open</span></td>
-                        <td class="port-risk">{{ port|port_risk }}</td>
+                        <td class="port-risk risk-{{ risk|lower }}">{{ risk }}</td>
                     </tr>
                     {% endwith %}
                     {% endfor %}

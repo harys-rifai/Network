@@ -8,7 +8,7 @@
 <table class="hacker-table">
     <thead><tr><th>IP</th><th>Device</th><th>OS</th><th>Brand</th><th>MAC</th><th>Latency</th><th>Scanned At</th><th>Actions</th></tr></thead>
     <tbody>
-        {% for scan in scans %}
+        {% for scan in page_obj %}
         <tr>
             <td><a href="{% url 'scan_detail' scan.pk %}">{{ scan.ip }}</a></td>
             <td>{{ scan.device }}</td>
@@ -27,4 +27,5 @@
         {% endfor %}
     </tbody>
 </table>
+{% include 'pagination.html' %}
 {% endblock %}
