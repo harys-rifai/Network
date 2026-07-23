@@ -9,7 +9,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="{% if not user.is_authenticated %}no-nav{% endif %}">
-    {% if user.is_authenticated %}
     <nav class="navbar">
         <div class="logo">NET-MON</div>
         <ul class="nav-links">
@@ -18,10 +17,11 @@
             <li><a href="/scan/add/">New Scan</a></li>
             <li><a href="/network-map/">Network Map</a></li>
             <li><a href="/db-maintenance/">Database</a></li>
+            {% if user.is_authenticated %}
             <li><form method="post" action="{% url 'logout' %}" class="logout-form">{% csrf_token %}<button type="submit" class="btn-logout">LOGOUT</button></form></li>
+            {% endif %}
         </ul>
     </nav>
-    {% endif %}
     <main class="container">
         {% block content %}{% endblock %}
     </main>

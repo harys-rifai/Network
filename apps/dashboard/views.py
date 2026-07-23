@@ -94,17 +94,103 @@ def db_maintenance(request):
     result = None
     error = None
     action = None
+    tables = []
+    indexes = []
+    selected_table = None
+    vacuum_steps = []
+    vacuum_output = None
+    db_vendor = connection.vendor
+
+    if db_vendor == 'postgresql':
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_type = 'BASE TABLE'
+                ORDER BY table_name;
+            """)
+            tables = [row[0] for row in cursor.fetchall()]
+
     if request.method == 'POST':
         action = request.POST.get('action')
+        selected_table = request.POST.get('table_name')
         try:
             with connection.cursor() as cursor:
-                if action == 'vacuum':
-                    cursor.execute('VACUUM VERBOSE ANALYZE scan_scan;')
-                    result = 'VACUUM ANALYZE completed successfully on scan_scan.'
-                elif action == 'reindex':
-                    cursor.execute('REINDEX TABLE scan_scan;')
-                    result = 'Reindex completed successfully on scan_scan.'
+                if action == 'list_tables':
+                    pass
+                elif action == 'list_indexes' and selected_table:
+                    if db_vendor == 'postgresql':
+                        cursor.execute("""
+                            SELECT indexname, indexdef
+                            FROM pg_indexes
+                            WHERE tablename = %s;
+                        """, [selected_table])
+                        indexes = [{'name': r[0], 'definition': r[1]} for r in cursor.fetchall()]
+                elif action == 'vacuum' and selected_table:
+                    vacuum_type = request.POST.get('vacuum_type', 'analyze')
+                    vacuum_commands = {
+                        'analyze': f'VACUUM ANALYZE {selected_table};',
+                        'full': f'VACUUM FULL {selected_table};',
+                        'verbose_full': f'VACUUM VERBOSE FULL {selected_table};',
+                        'full_analyze': f'VACUUM (VERBOSE, FULL, ANALYZE) {selected_table};',
+                        'verbose': f'VACUUM VERBOSE {selected_table};',
+                        'freeze': f'VACUUM FREEZE {selected_table};',
+                    }
+                    vacuum_steps = [vacuum_commands.get(vacuum_type, vacuum_commands['analyze'])]
+                    cursor.execute(vacuum_steps[0])
+                    vacuum_output = f'VACUUM {vacuum_type.replace("_", " ").upper()} completed on {selected_table}.'
+                elif action == 'reindex' and selected_table:
+                    vacuum_steps = [
+                        f'REINDEX TABLE {selected_table};',
+                    ]
+                    cursor.execute(f'REINDEX TABLE {selected_table};')
+                    vacuum_output = f'Reindex completed on {selected_table}.'
                 elif action == 'slow_query':
+                    if db_vendor == 'postgresql':
+                        cursor.execute("""
+                            SELECT 
+                                now() - pg_stat_activity.query_start AS duration,
+                                query,
+                                state
+                            FROM pg_stat_activity
+                            WHERE state = 'active'
+                              AND query NOT ILIKE '%pg_stat_activity%'
+                            ORDER BY duration DESC
+                            LIMIT 20;
+                        """)
+                        rows = cursor.fetchall()
+                        result = {
+                            'headers': ['Duration', 'Query', 'State'],
+                            'rows': rows
+                        }
+                else:
+                    error = 'Invalid action.'
+        except Exception as e:
+            error = str(e)
+    else:
+        action = request.GET.get('action')
+        if action == 'list_tables':
+            pass
+        elif action == 'list_indexes' and request.GET.get('table'):
+            selected_table = request.GET.get('table')
+            if db_vendor == 'postgresql':
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT indexname, indexdef
+                        FROM pg_indexes
+                        WHERE tablename = %s;
+                    """, [selected_table])
+                    indexes = [{'name': r[0], 'definition': r[1]} for r in cursor.fetchall()]
+        elif action == 'vacuum' and request.GET.get('table'):
+            selected_table = request.GET.get('table')
+            vacuum_steps = [f'VACUUM (VERBOSE, ANALYZE) {selected_table};']
+        elif action == 'reindex' and request.GET.get('table'):
+            selected_table = request.GET.get('table')
+            vacuum_steps = [f'REINDEX TABLE {selected_table};']
+        elif action == 'slow_query':
+            if db_vendor == 'postgresql':
+                with connection.cursor() as cursor:
                     cursor.execute("""
                         SELECT 
                             now() - pg_stat_activity.query_start AS duration,
@@ -121,12 +207,15 @@ def db_maintenance(request):
                         'headers': ['Duration', 'Query', 'State'],
                         'rows': rows
                     }
-                else:
-                    error = 'Invalid action.'
-        except Exception as e:
-            error = str(e)
+
     return render(request, 'db_maintenance.html', {
         'result': result,
         'error': error,
         'action': action,
+        'tables': tables,
+        'indexes': indexes,
+        'selected_table': selected_table,
+        'vacuum_steps': vacuum_steps,
+        'vacuum_output': vacuum_output,
+        'db_vendor': db_vendor,
     })
