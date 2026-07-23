@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-grid">
+    <div class="card">
+        <div class="card-header">Total Devices</div>
+        <div class="card-body">{{ total_devices }}</div>
+    </div>
+    <div class="card">
+        <div class="card-header">OS Variants</div>
+        <div class="card-body">{{ os_stats|length }}</div>
+    </div>
+    <div class="card">
+        <div class="card-header">Brands</div>
+        <div class="card-body">{{ brand_stats|length }}</div>
+    </div>
+</div>
+
+<div class="charts-row">
+    <div class="chart-box">
+        <h2>OS Distribution</h2>
+        <canvas id="osChart"></canvas>
+    </div>
+    <div class="chart-box">
+        <h2>Brand Distribution</h2>
+        <canvas id="brandChart"></canvas>
+    </div>
+</div>
+
+<div class="recent-section">
+    <h2>Recent Scans</h2>
+    <table class="hacker-table">
+        <thead><tr><th>IP</th><th>Device</th><th>OS</th><th>Brand</th><th>Scanned At</th></tr></thead>
+        <tbody>
+            {% for scan in recent_scans %}
+            <tr>
+                <td><a href="{% url 'scan_detail' scan.pk %}">{{ scan.ip }}</a></td>
+                <td>{{ scan.device }}</td>
+                <td>{{ scan.os }}</td>
+                <td>{{ scan.brand }}</td>
+                <td>{{ scan.scanned_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No scans yet. <a href="{% url 'scan_trigger' %}">Run a scan</a></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const osCtx = document.getElementById('osChart').getContext('2d');
+new Chart(osCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ os_labels|safe }},
+        datasets: [{ data: {{ os_data|safe }}, backgroundColor: ['#22d3ee','#10b981','#f59e0b','#6366f1','#ef4444','#94a3b8','#64748b'] }]
+    },
+    options: { plugins: { legend: { labels: { color: '#9ca3af' } } } }
+});
+const brandCtx = document.getElementById('brandChart').getContext('2d');
+new Chart(brandCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ brand_labels|safe }},
+        datasets: [{ label: 'Devices', data: {{ brand_data|safe }}, backgroundColor: 'rgba(34,211,238,0.85)', borderColor: '#22d3ee', borderWidth: 1 }]
+    },
+    options: { plugins: { legend: { labels: { color: '#9ca3af' } } }, scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' } } } }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="chart-box" style="width:100%; height:600px;">
+    <h2>Network Topology</h2>
+    <div id="network" style="width:100%; height:550px; border:1px solid #00ff00;"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const container = document.getElementById('network');
+const data = {{ networks|safe }};
+const options = {
+    nodes: { shape: 'dot', size: 20, font: { color: '#00ff00' } },
+    edges: { color: { color: '#00ff00', highlight: '#ff0033' }, arrows: { to: { enabled: true } } },
+    physics: { stabilization: false }
+};
+const network = new vis.Network(container, data, options);
+</script>
+{% endblock %}

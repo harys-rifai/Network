@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="detail-card">
+    <h2>IP: {{ scan.ip }}</h2>
+    <p><strong>Device:</strong> {{ scan.device }}</p>
+    <p><strong>OS:</strong> {{ scan.os }}</p>
+    <p><strong>Brand:</strong> {{ scan.brand }}</p>
+    <p><strong>Gateway:</strong> {{ scan.gateway }}</p>
+    <p><strong>Router:</strong> {{ scan.router }}</p>
+    <p><strong>DNS:</strong> {{ scan.dns }}</p>
+    <p><strong>Scanned At:</strong> {{ scan.scanned_at|date:"Y-m-d H:i" }}</p>
+    <a href="{% url 'scan_list' %}" class="btn-small">Back</a>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="auth-box">
+    <h1 class="matrix-title">Confirm Delete</h1>
+    <p>Are you sure you want to delete scan record for {{ scan.ip }}?</p>
+    <form method="post" class="hacker-form">
+        {% csrf_token %}
+        <button type="submit" class="btn-primary btn-danger">Delete</button>
+        <a href="{% url 'scan_list' %}" class="btn-small">Cancel</a>
+    </form>
+</div>
+{% endblock %}

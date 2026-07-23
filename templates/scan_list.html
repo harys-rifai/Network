@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Scan Results</h1>
+    <a href="{% url 'scan_trigger' %}" class="btn-primary">+ New Scan</a>
+</div>
+<table class="hacker-table">
+    <thead><tr><th>IP</th><th>Device</th><th>OS</th><th>Brand</th><th>Gateway</th><th>Scanned At</th><th>Actions</th></tr></thead>
+    <tbody>
+        {% for scan in scans %}
+        <tr>
+            <td><a href="{% url 'scan_detail' scan.pk %}">{{ scan.ip }}</a></td>
+            <td>{{ scan.device }}</td>
+            <td>{{ scan.os }}</td>
+            <td>{{ scan.brand }}</td>
+            <td>{{ scan.gateway }}</td>
+            <td>{{ scan.scanned_at|date:"Y-m-d H:i" }}</td>
+            <td class="actions">
+                <a href="{% url 'scan_edit' scan.pk %}" class="btn-small">Edit</a>
+                <a href="{% url 'scan_delete' scan.pk %}" class="btn-small btn-danger">Delete</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7">No scan data. <a href="{% url 'scan_trigger' %}">Trigger a scan</a></td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

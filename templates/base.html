@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Monitor</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">&#9608; NET-MON</div>
+        <ul class="nav-links">
+            <li><a href="/">Dashboard</a></li>
+            <li><a href="/scan/">Scan Results</a></li>
+            <li><a href="/scan/add/">New Scan</a></li>
+            <li><a href="/network-map/">Network Map</a></li>
+            {% if user.is_authenticated %}
+                <li><form method="post" action="{% url 'logout' %}" class="logout-form">{% csrf_token %}<button type="submit" class="btn-logout">LOGOUT</button></form></li>
+            {% endif %}
+        </ul>
+    </nav>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="footer">
+        <p>&copy; {% now "Y" %} Network Monitoring System</p>
+    </footer>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
