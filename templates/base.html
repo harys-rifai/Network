@@ -8,7 +8,7 @@
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="{% if not user.is_authenticated %}no-nav{% endif %}">
     {% if user.is_authenticated %}
     <nav class="navbar">
         <div class="logo">NET-MON</div>
