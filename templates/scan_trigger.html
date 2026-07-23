@@ -3,6 +3,11 @@
 {% block content %}
 <div class="auth-box">
     <h1 class="matrix-title">Trigger Network Scan</h1>
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
     <form method="post" class="hacker-form" id="scanForm">
         {% csrf_token %}
         <div class="form-group"><label>Subnet</label><input type="text" name="subnet" value="{{ subnet|default:'10.0.0.0/24' }}" required></div>
@@ -10,7 +15,7 @@
         <button type="submit" class="btn-primary" id="scanButton">Run Scan</button>
         <a href="{% url 'scan_list' %}" class="btn-small">Cancel</a>
     </form>
-    <p class="note">Real network scan using live host discovery. Defaults to your active interface subnet.</p>
+    <p class="note">Real network scan using live host discovery. Defaults to your active interface subnet. Network changes trigger auto-scan.</p>
 </div>
 
 <div id="scanLoader" style="display:none;">

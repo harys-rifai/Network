@@ -3,9 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count
 from django.core.paginator import Paginator
+from django.core.cache import cache
 import ipaddress
 from .models import Scan
-from .scanner import scan_network, get_active_interface
+from .scanner import scan_network, get_active_interface, get_public_ip, get_isp_info
 
 @login_required
 def scan_list(request):
@@ -73,16 +74,30 @@ def scan_delete(request, pk):
 
 @login_required
 def scan_trigger(request):
+    iface_name, ip_addr, netmask = get_active_interface()
+    current_subnet = None
+    if ip_addr and netmask:
+        try:
+            current_subnet = str(ipaddress.IPv4Network(f'{ip_addr}/{netmask}', strict=False))
+        except Exception:
+            current_subnet = None
+
+    last_scanned_subnet = cache.get('last_scanned_subnet')
+    network_changed = current_subnet and current_subnet != last_scanned_subnet
+
     if request.method == 'POST':
-        subnet = request.POST.get('subnet') or None
+        subnet = request.POST.get('subnet') or current_subnet
         max_hosts = int(request.POST.get('count', 254))
         try:
-            results = scan_network(subnet=subnet, max_hosts=max_hosts, max_workers=100)
+            scan_result = scan_network(subnet=subnet, max_hosts=max_hosts, max_workers=100)
+            results = scan_result[0] if isinstance(scan_result, tuple) else scan_result
+            isp_info = scan_result[1] if isinstance(scan_result, tuple) else {}
         except Exception as e:
             messages.error(request, f'Scan failed: {str(e)}')
             return redirect('scan_trigger')
         added = 0
         updated = 0
+        public_ip = get_public_ip()
         for r in results:
             services_dict = dict(zip(r.get('open_ports', []), r.get('services', []))) if r.get('open_ports') else None
             obj, created = Scan.objects.update_or_create(
@@ -98,20 +113,61 @@ def scan_trigger(request):
                     'latency_ms': r.get('latency_ms'),
                     'open_ports': r.get('open_ports'),
                     'services': services_dict,
+                    'public_ip': public_ip,
+                    'isp_name': isp_info.get('isp'),
+                    'isp_org': isp_info.get('org'),
+                    'server_info': r.get('server_info'),
                 }
             )
             if created:
                 added += 1
             else:
                 updated += 1
+        if current_subnet:
+            cache.set('last_scanned_subnet', current_subnet, timeout=None)
         msg = f'Scan completed. {added} new, {updated} updated.'
         messages.success(request, msg)
         return redirect('scan_list')
-    iface_name, ip_addr, netmask = get_active_interface()
-    subnet = None
-    if ip_addr and netmask:
+
+    if network_changed and current_subnet:
+        cache.set('last_scanned_subnet', current_subnet, timeout=None)
         try:
-            subnet = str(ipaddress.IPv4Network(f'{ip_addr}/{netmask}', strict=False))
-        except Exception:
-            subnet = None
-    return render(request, 'scan_trigger.html', {'subnet': subnet})
+            scan_result = scan_network(subnet=current_subnet, max_hosts=254, max_workers=100)
+            results = scan_result[0] if isinstance(scan_result, tuple) else scan_result
+            isp_info = scan_result[1] if isinstance(scan_result, tuple) else {}
+        except Exception as e:
+            messages.error(request, f'Auto-scan failed: {str(e)}')
+            return render(request, 'scan_trigger.html', {'subnet': current_subnet, 'network_changed': True, 'auto_scan_error': str(e)})
+        added = 0
+        updated = 0
+        public_ip = get_public_ip()
+        for r in results:
+            services_dict = dict(zip(r.get('open_ports', []), r.get('services', []))) if r.get('open_ports') else None
+            obj, created = Scan.objects.update_or_create(
+                ip=r['ip'],
+                defaults={
+                    'device': r['device'],
+                    'os': r['os'],
+                    'brand': r['brand'],
+                    'gateway': r['gateway'],
+                    'router': r['router'],
+                    'dns': r['dns'],
+                    'mac_address': r.get('mac_address'),
+                    'latency_ms': r.get('latency_ms'),
+                    'open_ports': r.get('open_ports'),
+                    'services': services_dict,
+                    'public_ip': public_ip,
+                    'isp_name': isp_info.get('isp'),
+                    'isp_org': isp_info.get('org'),
+                    'server_info': r.get('server_info'),
+                }
+            )
+            if created:
+                added += 1
+            else:
+                updated += 1
+        msg = f'Network changed! Auto-scanned {current_subnet}. {added} new, {updated} updated.'
+        messages.success(request, msg)
+        return redirect('scan_list')
+
+    return render(request, 'scan_trigger.html', {'subnet': current_subnet})

@@ -7,6 +7,7 @@ from django.core.paginator import Paginator
 from django.conf import settings
 from django.db import connection
 from apps.scan.models import Scan
+from apps.scan.scanner import get_public_ip, get_isp_info, get_wan_interface_info
 
 @login_required
 def dashboard(request):
@@ -130,21 +131,53 @@ def network_map(request):
             })
 
     networks = {'nodes': nodes, 'edges': edges}
+
+    public_ip = get_public_ip()
+    isp_info = get_isp_info(public_ip)
+    wan_info = get_wan_interface_info()
+
+    isp_label = isp_info.get('isp') or isp_info.get('org') or 'ISP'
+    isp_title_parts = []
+    if isp_info.get('isp'):
+        isp_title_parts.append(f"ISP: {isp_info['isp']}")
+    if isp_info.get('org'):
+        isp_title_parts.append(f"Org: {isp_info['org']}")
+    if public_ip:
+        isp_title_parts.append(f"Public IP: {public_ip}")
+    if isp_info.get('city') or isp_info.get('region') or isp_info.get('country'):
+        loc = ', '.join(filter(None, [isp_info.get('city'), isp_info.get('region'), isp_info.get('country')]))
+        isp_title_parts.append(f"Location: {loc}")
+    if isp_info.get('as'):
+        isp_title_parts.append(f"AS: {isp_info['as']}")
+    if wan_info.get('interface'):
+        isp_title_parts.append(f"Interface: {wan_info['interface']}")
+    if wan_info.get('media'):
+        isp_title_parts.append(f"Media: {wan_info['media']}")
+    isp_title = '\n'.join(isp_title_parts) if isp_title_parts else 'Internet Service Provider'
+
+    nodes[0] = {
+        'id': ISP_ID,
+        'label': isp_label,
+        'title': isp_title,
+        'shape': 'icon',
+        'icon': { 'face': 'FontAwesome', 'code': '\uf0c2', 'size': 50, 'color': '#60a5fa' },
+        'font': { 'color': '#93c5fd', 'size': 13, 'face': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
+    }
+
     return render(request, 'network_map.html', {
         'networks': json.dumps(networks),
         'total_devices': total,
         'online_count': online,
         'gateway_ip': gateway_ip or '192.168.1.1',
         'scans': scans,
+        'isp_name': isp_info.get('isp') or 'Unknown',
+        'isp_org': isp_info.get('org') or 'Unknown',
+        'public_ip': public_ip or 'Unknown',
+        'isp_location': ', '.join(filter(None, [isp_info.get('city'), isp_info.get('region'), isp_info.get('country')])) or 'Unknown',
+        'isp_as': isp_info.get('as') or 'Unknown',
+        'wan_interface': wan_info.get('interface') or 'Unknown',
+        'wan_media': wan_info.get('media') or 'Unknown',
     })
-
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.db.models import Count
-from django.core.paginator import Paginator
-from django.db import connection
-from apps.scan.models import Scan
-from .models import DbMaintenance
 
 @login_required
 def db_maintenance(request):

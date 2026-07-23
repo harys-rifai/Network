@@ -19,6 +19,18 @@
     </div>
     <div class="network-side">
         <div class="chart-box">
+            <h2>ISP & Connection</h2>
+            <div class="isp-info">
+                <div class="isp-row"><span class="isp-label">ISP</span><span class="isp-value">{{ isp_name }}</span></div>
+                <div class="isp-row"><span class="isp-label">Org</span><span class="isp-value">{{ isp_org }}</span></div>
+                <div class="isp-row"><span class="isp-label">Public IP</span><span class="isp-value">{{ public_ip }}</span></div>
+                <div class="isp-row"><span class="isp-label">Location</span><span class="isp-value">{{ isp_location }}</span></div>
+                <div class="isp-row"><span class="isp-label">ASN</span><span class="isp-value">{{ isp_as }}</span></div>
+                <div class="isp-row"><span class="isp-label">Interface</span><span class="isp-value">{{ wan_interface }}</span></div>
+                <div class="isp-row"><span class="isp-label">Media</span><span class="isp-value">{{ wan_media }}</span></div>
+            </div>
+        </div>
+        <div class="chart-box">
             <h2>Legend</h2>
             <div class="legend-list">
                 <div class="legend-item"><span class="legend-dot" style="background:#60a5fa;box-shadow:0 0 8px #60a5fa;"></span><span>ISP / Internet</span></div>

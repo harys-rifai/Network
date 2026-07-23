@@ -1,4 +1,5 @@
 import ipaddress
+import json
 import re
 import socket
 import subprocess
@@ -450,5 +451,144 @@ def scan_network(subnet=None, max_hosts=254, max_workers=120):
                 'latency_ms': latency_ms,
                 'open_ports': ports,
                 'services': services,
+                'server_info': detect_server_info(hostname, ports, services),
             })
-    return results
+    public_ip = get_public_ip()
+    isp_info = get_isp_info(public_ip)
+    for r in results:
+        r['public_ip'] = public_ip
+        r['isp_name'] = isp_info.get('isp')
+        r['isp_org'] = isp_info.get('org')
+    return results, isp_info
+
+
+def get_public_ip():
+    try:
+        out = subprocess.check_output(
+            ['curl', '-s', '--max-time', '3', 'https://api.ipify.org'],
+            text=True, timeout=5,
+        )
+        ip = out.strip()
+        if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', ip):
+            return ip
+    except Exception:
+        pass
+    return None
+
+
+def get_isp_info(public_ip=None):
+    ip = public_ip or get_public_ip()
+    if not ip:
+        return {}
+    try:
+        out = subprocess.check_output(
+            ['curl', '-s', '--max-time', '3', f'https://ip-api.com/json/{ip}?fields=isp,org,as,country,regionName,city,status,message'],
+            text=True, timeout=5,
+        )
+        data = json.loads(out)
+        if data.get('status') == 'success':
+            return {
+                'isp': data.get('isp'),
+                'org': data.get('org'),
+                'as': data.get('as'),
+                'country': data.get('country'),
+                'region': data.get('regionName'),
+                'city': data.get('city'),
+            }
+    except Exception:
+        pass
+    return {}
+
+
+def detect_server_info(hostname, ports, services):
+    ports_set = set(ports)
+    svc_set = set(services)
+    server_types = []
+    if 22 in ports_set:
+        server_types.append('SSH')
+    if 80 in ports_set or 443 in ports_set:
+        server_types.append('Web')
+    if 3306 in ports_set:
+        server_types.append('MySQL')
+    if 5432 in ports_set:
+        server_types.append('PostgreSQL')
+    if 6379 in ports_set:
+        server_types.append('Redis')
+    if 27017 in ports_set:
+        server_types.append('MongoDB')
+    if 1433 in ports_set:
+        server_types.append('MSSQL')
+    if 1521 in ports_set:
+        server_types.append('Oracle')
+    if 2375 in ports_set:
+        server_types.append('Docker')
+    if 9200 in ports_set or 5601 in ports_set:
+        server_types.append('Elasticsearch')
+    if 21 in ports_set:
+        server_types.append('FTP')
+    if 25 in ports_set:
+        server_types.append('SMTP')
+    if 53 in ports_set:
+        server_types.append('DNS')
+    if 3000 in ports_set:
+        server_types.append('Node.js')
+    if 5000 in ports_set:
+        server_types.append('UPnP/Media')
+    if 631 in ports_set:
+        server_types.append('Print Server')
+    if 5900 in ports_set:
+        server_types.append('VNC')
+    if 7000 in ports_set:
+        server_types.append('AirPlay')
+    if 548 in ports_set:
+        server_types.append('AFP')
+    if 11211 in ports_set:
+        server_types.append('Memcached')
+    if 445 in ports_set or 139 in ports_set:
+        server_types.append('SMB/File')
+    if 5353 in ports_set:
+        server_types.append('mDNS/Bonjour')
+    if hostname and ('server' in hostname.lower() or 'srv' in hostname.lower()):
+        server_types.append('Hostname')
+    return ', '.join(server_types) if server_types else None
+
+
+def get_wan_interface_info():
+    try:
+        out = subprocess.check_output(['ifconfig'], text=True)
+        lines = out.splitlines()
+        interfaces = {}
+        current = None
+        curr_lines = []
+        for line in lines:
+            if line and not line.startswith('\t') and ':' in line:
+                if current:
+                    interfaces[current] = curr_lines
+                current = line.split(':')[0].strip()
+                curr_lines = [line]
+            else:
+                curr_lines.append(line)
+        if current:
+            interfaces[current] = curr_lines
+
+        skip = {'lo0', 'gif0', 'stf0', 'utun0', 'utun1', 'utun2', 'utun3', 'awdl0', 'llw0', 'bridge0'}
+        for name, block in interfaces.items():
+            if name in skip:
+                continue
+            active = False
+            media = None
+            for bline in block:
+                bline = bline.strip()
+                if bline.startswith('status:'):
+                    if 'active' in bline.lower():
+                        active = True
+                if bline.startswith('media:'):
+                    media = bline.split(':', 1)[1].strip()
+            if active and media:
+                return {
+                    'interface': name,
+                    'media': media,
+                }
+    except Exception:
+        pass
+    return {}
