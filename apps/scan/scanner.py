@@ -11,12 +11,11 @@ PORT_SERVICES = {
     5900: 'VNC', 631: 'IPP', 5000: 'UPnP', 7000: 'AirPlay', 548: 'AFP',
     3306: 'MySQL', 5432: 'PostgreSQL', 27017: 'MongoDB', 6379: 'Redis',
     11211: 'Memcached', 1433: 'MSSQL', 1521: 'Oracle', 2375: 'Docker',
-    3000: 'Node/HTTP', 3306: 'MySQL', 9200: 'Elasticsearch', 5601: 'Kibana',
+    3000: 'Node/HTTP', 9200: 'Elasticsearch', 5601: 'Kibana',
 }
 
 OUI_VENDORS = {
-    '001122': 'Cisco', '00199d': 'Cisco', '0021a1': 'Cisco', '0022:1': 'Cisco',
-    '3c5a:b4': 'Cisco', '44:23': 'Cisco', '54:a7': 'Cisco',
+    '001122': 'Cisco', '00199d': 'Cisco', '0021a1': 'Cisco',
     '00:1a:79': 'Cisco', '00:1e:bd': 'Cisco', '00:21:55': 'Cisco',
     '00:25:9c': 'Cisco', '00:26:5a': 'Dell', '00:26:b9': 'Dell',
     '00:14:22': 'Dell', '00:1c:c4': 'Dell', '00:21:9b': 'Dell',
@@ -29,48 +28,47 @@ OUI_VENDORS = {
     '04:0c:ce': 'Apple', '04:15:52': 'Apple', '04:1e:64': 'Apple',
     '04:26:65': 'Apple', '04:54:53': 'Apple', '04:db:56': 'Apple',
     '08:00:07': 'Apple', '10:1c:0c': 'Apple', '18:3d:a2': 'Apple',
-    '18:3d:a2': 'Apple', '20:c9:d0': 'Apple', '28:cf:da': 'Apple',
-    '2c:be:08': 'Apple', '30:10:b3': 'Apple', '30:35:ad': 'Apple',
-    '38:0f:4a': 'Apple', '38:0f:4a': 'Apple', '3c:07:54': 'Apple',
-    '40:30:05': 'Apple', '40:6c:8f': 'Apple', '44:2a:60': 'Apple',
-    '48:60:bc': 'Apple', '48:74:6e': 'Apple', '54:26:96': 'Apple',
-    '54:4e:90': 'Apple', '58:1c:f8': 'Apple', '58:7f:57': 'Apple',
-    '58:b0:35': 'Apple', '5c:8d:4e': 'Apple', '60:03:08': 'Apple',
-    '60:c5:47': 'Apple', '64:20:0c': 'Apple', '68:5b:35': 'Apple',
-    '6c:40:08': 'Apple', '6c:72:e7': 'Apple', '70:11:24': 'Apple',
-    '70:14:a6': 'Apple', '70:3e:97': 'Apple', '74:1b:b2': 'Apple',
-    '78:4f:43': 'Apple', '78:6a:89': 'Apple', '7c:11:be': 'Apple',
-    '7c:6d:62': 'Apple', '80:be:05': 'Apple', '84:38:35': 'Apple',
-    '84:78:ac': 'Apple', '88:53:2e': 'Apple', '88:ae:07': 'Apple',
-    '88:cb:87': 'Apple', '8c:1a:b4': 'Apple', '8c:58:77': 'Apple',
-    '90:27:e4': 'Apple', '90:72:40': 'Apple', '90:84:0d': 'Apple',
-    '94:94:26': 'Apple', '98:01:a7': 'Apple', '9c:04:eb': 'Apple',
-    '9c:20:7b': 'Apple', '9c:29:76': 'Apple', '9c:35:eb': 'Apple',
-    '9c:f4:8e': 'Apple', 'a0:99:9b': 'Apple', 'a4:b1:97': 'Apple',
-    'a4:c3:61': 'Apple', 'a4:d1:8c': 'Apple', 'a8:20:66': 'Apple',
-    'a8:5b:78': 'Apple', 'a8:96:75': 'Apple', 'ac:3a:7a': 'Apple',
-    'ac:bc:32': 'Apple', 'b0:34:95': 'Apple', 'b8:17:99': 'Apple',
-    'b8:27:eb': 'Apple', 'b8:c7:5d': 'Apple', 'bc:3b:af': 'Apple',
-    'bc:4c:c4': 'Apple', 'bc:67:78': 'Apple', 'c0:84:7a': 'Apple',
-    'c0:ce:cd': 'Apple', 'c0:d0:12': 'Apple', 'c4:2c:03': 'Apple',
-    'c8:1e:e7': 'Apple', 'c8:6f:1d': 'Apple', 'c8:bc:c8': 'Apple',
-    'cc:29:f5': 'Apple', 'd0:23:db': 'Apple', 'd0:33:11': 'Apple',
-    'd0:65:ca': 'Apple', 'd4:61:9d': 'Apple', 'd4:9a:20': 'Apple',
-    'd8:1d:72': 'Apple', 'd8:30:62': 'Apple', 'd8:96:95': 'Apple',
-    'd8:a2:5e': 'Apple', 'dc:0b:34': 'Apple', 'dc:9b:9c': 'Apple',
-    'e0:2a:82': 'Apple', 'e0:5f:b9': 'Apple', 'e0:ac:cb': 'Apple',
-    'e0:b9:ba': 'Apple', 'e0:c7:67': 'Apple', 'e4:25:e7': 'Apple',
-    'e8:06:88': 'Apple', 'ec:35:86': 'Apple', 'f0:18:98': 'Apple',
-    'f0:24:75': 'Apple', 'f0:76:1c': 'Apple', 'f0:99:bf': 'Apple',
-    'f0:b4:79': 'Apple', 'f0:cb:a1': 'Apple', 'f4:15:63': 'Apple',
-    'f4:37:b7': 'Apple', 'f4:5c:89': 'Apple', 'f8:1e:df': 'Apple',
-    'f8:27:93': 'Apple', 'f8:62:14': 'Apple', 'fc:25:3f': 'Apple',
-    'fc:fc:48': 'Apple', '00:1e:bd': 'Cisco', '00:23:32': 'Apple',
-    '00:26:5a': 'Dell', '00:21:9b': 'Dell', '00:22:19': 'HP',
-    '00:23:61': 'Apple', '00:26:bb': 'Apple', '00:50:f2': 'Microsoft',
-    '00:15:5d': 'Microsoft', '00:17:fa': 'Microsoft', '00:1d:09': 'Microsoft',
-    '00:22:48': 'Microsoft', '00:23:16': 'Microsoft', '00:25:ae': 'Microsoft',
-    '00:e0:4c': 'Realtek', '00:e0:4c': 'Realtek', '00:0c:e7': 'Motorola',
+    '20:c9:d0': 'Apple', '28:cf:da': 'Apple', '2c:be:08': 'Apple',
+    '30:10:b3': 'Apple', '30:35:ad': 'Apple', '38:0f:4a': 'Apple',
+    '3c:07:54': 'Apple', '40:30:05': 'Apple', '40:6c:8f': 'Apple',
+    '44:2a:60': 'Apple', '48:60:bc': 'Apple', '48:74:6e': 'Apple',
+    '54:26:96': 'Apple', '54:4e:90': 'Apple', '58:1c:f8': 'Apple',
+    '58:7f:57': 'Apple', '58:b0:35': 'Apple', '5c:8d:4e': 'Apple',
+    '60:03:08': 'Apple', '60:c5:47': 'Apple', '64:20:0c': 'Apple',
+    '68:5b:35': 'Apple', '6c:40:08': 'Apple', '6c:72:e7': 'Apple',
+    '70:11:24': 'Apple', '70:14:a6': 'Apple', '70:3e:97': 'Apple',
+    '74:1b:b2': 'Apple', '78:4f:43': 'Apple', '78:6a:89': 'Apple',
+    '7c:11:be': 'Apple', '7c:6d:62': 'Apple', '80:be:05': 'Apple',
+    '84:38:35': 'Apple', '84:78:ac': 'Apple', '88:53:2e': 'Apple',
+    '88:ae:07': 'Apple', '88:cb:87': 'Apple', '8c:1a:b4': 'Apple',
+    '8c:58:77': 'Apple', '90:27:e4': 'Apple', '90:72:40': 'Apple',
+    '90:84:0d': 'Apple', '94:94:26': 'Apple', '98:01:a7': 'Apple',
+    '9c:04:eb': 'Apple', '9c:20:7b': 'Apple', '9c:29:76': 'Apple',
+    '9c:35:eb': 'Apple', '9c:f4:8e': 'Apple', 'a0:99:9b': 'Apple',
+    'a4:b1:97': 'Apple', 'a4:c3:61': 'Apple', 'a4:d1:8c': 'Apple',
+    'a8:20:66': 'Apple', 'a8:5b:78': 'Apple', 'a8:96:75': 'Apple',
+    'ac:3a:7a': 'Apple', 'ac:bc:32': 'Apple', 'b0:34:95': 'Apple',
+    'b8:17:99': 'Apple', 'b8:27:eb': 'Apple', 'b8:c7:5d': 'Apple',
+    'bc:3b:af': 'Apple', 'bc:4c:c4': 'Apple', 'bc:67:78': 'Apple',
+    'c0:84:7a': 'Apple', 'c0:ce:cd': 'Apple', 'c0:d0:12': 'Apple',
+    'c4:2c:03': 'Apple', 'c8:1e:e7': 'Apple', 'c8:6f:1d': 'Apple',
+    'c8:bc:c8': 'Apple', 'cc:29:f5': 'Apple', 'd0:23:db': 'Apple',
+    'd0:33:11': 'Apple', 'd0:65:ca': 'Apple', 'd4:61:9d': 'Apple',
+    'd4:9a:20': 'Apple', 'd8:1d:72': 'Apple', 'd8:30:62': 'Apple',
+    'd8:96:95': 'Apple', 'd8:a2:5e': 'Apple', 'dc:0b:34': 'Apple',
+    'dc:9b:9c': 'Apple', 'e0:2a:82': 'Apple', 'e0:5f:b9': 'Apple',
+    'e0:ac:cb': 'Apple', 'e0:b9:ba': 'Apple', 'e0:c7:67': 'Apple',
+    'e4:25:e7': 'Apple', 'e8:06:88': 'Apple', 'ec:35:86': 'Apple',
+    'f0:18:98': 'Apple', 'f0:24:75': 'Apple', 'f0:76:1c': 'Apple',
+    'f0:99:bf': 'Apple', 'f0:b4:79': 'Apple', 'f0:cb:a1': 'Apple',
+    'f4:15:63': 'Apple', 'f4:37:b7': 'Apple', 'f4:5c:89': 'Apple',
+    'f8:1e:df': 'Apple', 'f8:27:93': 'Apple', 'f8:62:14': 'Apple',
+    'fc:25:3f': 'Apple', 'fc:fc:48': 'Apple',
+    '00:50:f2': 'Microsoft', '00:15:5d': 'Microsoft', '00:17:fa': 'Microsoft',
+    '00:1d:09': 'Microsoft', '00:22:48': 'Microsoft', '00:23:16': 'Microsoft',
+    '00:25:ae': 'Microsoft',
+    '00:e0:4c': 'Realtek', '00:0c:e7': 'Motorola',
+    '00:1f:3b': 'Apple', '00:1f:3b': 'Apple',
 }
 
 def mac_to_vendor(mac):
@@ -153,17 +151,33 @@ def get_dns_servers():
 
 def get_mac_from_arp(ip):
     try:
-        out = subprocess.check_output(['arp', '-a', ip], text=True)
+        out = subprocess.check_output(['arp', '-a'], text=True)
         for line in out.splitlines():
             line = line.strip()
-            if line.startswith(ip) or ip in line:
+            if f'({ip})' in line or f' {ip} ' in line:
                 parts = line.split()
                 for p in parts:
+                    p = p.strip()
                     if ':' in p and len(p) == 17:
                         return p.lower()
     except Exception:
         pass
     return None
+
+def measure_latency(ip, ports):
+    last = None
+    for port in ports:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.4)
+            start = time.time()
+            s.connect((str(ip), port))
+            s.close()
+            last = round((time.time() - start) * 1000, 2)
+            break
+        except Exception:
+            pass
+    return last
 
 def scan_host(ip, ports=(22, 80, 443, 445, 139, 3389, 53, 5353, 5900, 631, 5000, 7000, 548, 3306, 5432, 6379, 2375, 9200)):
     open_ports = []
@@ -173,7 +187,6 @@ def scan_host(ip, ports=(22, 80, 443, 445, 139, 3389, 53, 5353, 5900, 631, 5000,
     except Exception:
         pass
 
-    start = time.time()
     for port in ports:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -183,7 +196,7 @@ def scan_host(ip, ports=(22, 80, 443, 445, 139, 3389, 53, 5353, 5900, 631, 5000,
             open_ports.append(port)
         except Exception:
             pass
-    latency_ms = round((time.time() - start) * 1000, 2) if open_ports else None
+    latency_ms = measure_latency(ip, open_ports) if open_ports else None
     mac = get_mac_from_arp(str(ip))
     services = [PORT_SERVICES[p] for p in open_ports if p in PORT_SERVICES]
     return {
@@ -196,35 +209,43 @@ def scan_host(ip, ports=(22, 80, 443, 445, 139, 3389, 53, 5353, 5900, 631, 5000,
     }
 
 def guess_device_from_hostname(hn, ports):
-    if not hn:
-        return 'Unknown'
-    h = hn.lower()
-    if 'router' in h or 'gateway' in h or 'gw ' in h or h.endswith('.gw'):
-        return 'Router'
-    if 'switch' in h:
-        return 'Switch'
-    if 'server' in h or 'srv' in h:
-        return 'Server'
-    if 'pc-' in h or 'laptop' in h or 'macbook' in h or 'imac' in h or 'desktop' in h:
-        return 'PC'
-    if 'phone' in h or 'iphone' in h or 'android' in h or 'galaxy' in h:
-        return 'Phone'
-    if 'printer' in h:
-        return 'Printer'
-    if 'firewall' in h or 'fw' in h:
-        return 'Firewall'
-    if 'ap' in h or 'access-point' in h or 'wifi' in h:
-        return 'Access Point'
-    if 'nas' in h or 'storage' in h:
-        return 'NAS'
-    if 'iot' in h:
-        return 'IoT'
-    if 445 in ports and 139 in ports:
+    if hn:
+        h = hn.lower()
+        if 'router' in h or 'gateway' in h or 'gw ' in h or h.endswith('.gw'):
+            return 'Router'
+        if 'switch' in h:
+            return 'Switch'
+        if 'server' in h or 'srv' in h:
+            return 'Server'
+        if 'pc-' in h or 'laptop' in h or 'macbook' in h or 'imac' in h or 'desktop' in h:
+            return 'PC'
+        if 'phone' in h or 'iphone' in h or 'android' in h or 'galaxy' in h:
+            return 'Phone'
+        if 'printer' in h:
+            return 'Printer'
+        if 'firewall' in h or 'fw' in h:
+            return 'Firewall'
+        if 'ap' in h or 'access-point' in h or 'wifi' in h:
+            return 'Access Point'
+        if 'nas' in h or 'storage' in h:
+            return 'NAS'
+        if 'iot' in h:
+            return 'IoT'
+    ports_set = set(ports)
+    if 445 in ports_set and 139 in ports_set:
         return 'PC/Server'
-    if 3389 in ports:
+    if 3389 in ports_set:
         return 'PC/Server'
-    if 22 in ports and 80 not in ports and 443 not in ports:
+    if 22 in ports_set and 80 not in ports_set and 443 not in ports_set:
         return 'Server/IoT'
+    if 80 in ports_set or 443 in ports_set:
+        return 'Web Device'
+    if 53 in ports_set or 5353 in ports_set:
+        return 'IoT/Embedded'
+    if 631 in ports_set:
+        return 'Printer'
+    if 5900 in ports_set:
+        return 'Workstation/IoT'
     return 'Unknown'
 
 def guess_os_from_ports(open_ports, hostname):
@@ -248,32 +269,41 @@ def guess_os_from_ports(open_ports, hostname):
         return 'Unknown'
     if 53 in ports or 5353 in ports:
         return 'Embedded'
-    if 5000 in ports or 7000 in ports:
-        return 'macOS/iOS'
+    if 631 in ports:
+        return 'Embedded'
+    if 5900 in ports:
+        return 'Unknown'
     return 'Unknown'
 
-def guess_brand(hostname, mac):
+def guess_brand(hostname, mac, services):
     if mac:
         v = mac_to_vendor(mac)
         if v != 'Unknown':
             return v
-    if not hostname:
-        return 'Unknown'
-    h = hostname.lower()
-    brands = {
-        'cisco': ['cisco'], 'ubiquiti': ['ubiquiti', 'unifi', 'dream machine', 'udm', 'edge'],
-        'mikrotik': ['mikrotik', 'routeros'], 'netgear': ['netgear'], 'tp-link': ['tp-link', 'tplink'],
-        'asus': ['asus'], 'apple': ['apple', 'macbook', 'imac', 'iphone', 'ipad'],
-        'juniper': ['juniper'], 'd-link': ['d-link', 'dlink'], 'lenovo': ['lenovo', 'thinkpad'],
-        'dell': ['dell', 'optiplex', 'latitude'], 'hp': ['hp', 'proliant'], 'samsung': ['samsung', 'galaxy'],
-        'huawei': ['huawei'], 'xiaomi': ['xiaomi', 'redmi'], 'oppo': ['oppo'],
-        'realme': ['realme'], 'vivo': ['vivo'], 'nokia': ['nokia'],
-        'sony': ['sony'], 'lg': ['lg'], 'motorola': ['motorola', 'moto']
-    }
-    for brand, keys in brands.items():
-        for k in keys:
-            if k in h:
-                return brand.title()
+    if hostname:
+        h = hostname.lower()
+        brands = {
+            'cisco': ['cisco'], 'ubiquiti': ['ubiquiti', 'unifi', 'dream machine', 'udm', 'edge'],
+            'mikrotik': ['mikrotik', 'routeros'], 'netgear': ['netgear'], 'tp-link': ['tp-link', 'tplink'],
+            'asus': ['asus'], 'apple': ['apple', 'macbook', 'imac', 'iphone', 'ipad'],
+            'juniper': ['juniper'], 'd-link': ['d-link', 'dlink'], 'lenovo': ['lenovo', 'thinkpad'],
+            'dell': ['dell', 'optiplex', 'latitude'], 'hp': ['hp', 'proliant'], 'samsung': ['samsung', 'galaxy'],
+            'huawei': ['huawei'], 'xiaomi': ['xiaomi', 'redmi'], 'oppo': ['oppo'],
+            'realme': ['realme'], 'vivo': ['vivo'], 'nokia': ['nokia'],
+            'sony': ['sony'], 'lg': ['lg'], 'motorola': ['motorola', 'moto']
+        }
+        for brand, keys in brands.items():
+            for k in keys:
+                if k in h:
+                    return brand.title()
+    if services:
+        svc_set = set(services)
+        if {'HTTP','HTTPS'} <= svc_set:
+            return 'Web Server'
+        if 'SSH' in svc_set:
+            return 'Linux/Embedded'
+        if {'SMB','NetBIOS'} <= svc_set:
+            return 'Windows PC'
     return 'Unknown'
 
 def scan_network(subnet=None, max_hosts=254, max_workers=120):
@@ -299,7 +329,7 @@ def scan_network(subnet=None, max_hosts=254, max_workers=120):
             if res['open_ports']:
                 device = guess_device_from_hostname(res['hostname'], res['open_ports'])
                 os_name = guess_os_from_ports(res['open_ports'], res['hostname'])
-                brand = guess_brand(res['hostname'], res['mac_address'])
+                brand = guess_brand(res['hostname'], res['mac_address'], res['services'])
                 results.append({
                     'ip': res['ip'],
                     'device': device,
