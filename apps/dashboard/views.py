@@ -89,17 +89,24 @@ def network_map(request):
         'scans': scans,
     })
 
+from datetime import datetime
+
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count
+from django.core.paginator import Paginator
+from django.db import connection
+from apps.scan.models import Scan
+from .models import DbMaintenance
+
 @login_required
 def db_maintenance(request):
-    result = None
-    error = None
-    action = None
-    tables = []
-    indexes = []
-    selected_table = None
-    vacuum_steps = []
-    vacuum_output = None
     db_vendor = connection.vendor
+    tables = []
+    table_stats = {}
+    maintenance_records = []
+    error = None
+    message = None
 
     if db_vendor == 'postgresql':
         with connection.cursor() as cursor:
@@ -112,110 +119,79 @@ def db_maintenance(request):
             """)
             tables = [row[0] for row in cursor.fetchall()]
 
+            for table in tables:
+                cursor.execute("""
+                    SELECT pg_size_pretty(pg_total_relation_size(%s));
+                """, [table])
+                size = cursor.fetchone()[0]
+
+                cursor.execute(f'SELECT COUNT(*) FROM {table};')
+                count = cursor.fetchone()[0]
+
+                cursor.execute("""
+                    SELECT indexname FROM pg_indexes WHERE tablename = %s;
+                """, [table])
+                idx_count = len(cursor.fetchall())
+
+                table_stats[table] = {
+                    'size': size,
+                    'count': count,
+                    'index_count': idx_count,
+                }
+
     if request.method == 'POST':
         action = request.POST.get('action')
-        selected_table = request.POST.get('table_name')
-        try:
-            with connection.cursor() as cursor:
-                if action == 'list_tables':
-                    pass
-                elif action == 'list_indexes' and selected_table:
-                    if db_vendor == 'postgresql':
-                        cursor.execute("""
-                            SELECT indexname, indexdef
-                            FROM pg_indexes
-                            WHERE tablename = %s;
-                        """, [selected_table])
-                        indexes = [{'name': r[0], 'definition': r[1]} for r in cursor.fetchall()]
-                elif action == 'vacuum' and selected_table:
-                    vacuum_type = request.POST.get('vacuum_type', 'analyze')
-                    vacuum_commands = {
-                        'analyze': f'VACUUM ANALYZE {selected_table};',
-                        'full': f'VACUUM FULL {selected_table};',
-                        'verbose_full': f'VACUUM VERBOSE FULL {selected_table};',
-                        'full_analyze': f'VACUUM (VERBOSE, FULL, ANALYZE) {selected_table};',
-                        'verbose': f'VACUUM VERBOSE {selected_table};',
-                        'freeze': f'VACUUM FREEZE {selected_table};',
-                    }
-                    vacuum_steps = [vacuum_commands.get(vacuum_type, vacuum_commands['analyze'])]
-                    cursor.execute(vacuum_steps[0])
-                    vacuum_output = f'VACUUM {vacuum_type.replace("_", " ").upper()} completed on {selected_table}.'
-                elif action == 'reindex' and selected_table:
-                    vacuum_steps = [
-                        f'REINDEX TABLE {selected_table};',
-                    ]
-                    cursor.execute(f'REINDEX TABLE {selected_table};')
-                    vacuum_output = f'Reindex completed on {selected_table}.'
-                elif action == 'slow_query':
-                    if db_vendor == 'postgresql':
-                        cursor.execute("""
-                            SELECT 
-                                now() - pg_stat_activity.query_start AS duration,
-                                query,
-                                state
-                            FROM pg_stat_activity
-                            WHERE state = 'active'
-                              AND query NOT ILIKE '%pg_stat_activity%'
-                            ORDER BY duration DESC
-                            LIMIT 20;
-                        """)
-                        rows = cursor.fetchall()
-                        result = {
-                            'headers': ['Duration', 'Query', 'State'],
-                            'rows': rows
-                        }
-                else:
-                    error = 'Invalid action.'
-        except Exception as e:
-            error = str(e)
-    else:
-        action = request.GET.get('action')
-        if action == 'list_tables':
-            pass
-        elif action == 'list_indexes' and request.GET.get('table'):
-            selected_table = request.GET.get('table')
-            if db_vendor == 'postgresql':
+        table_name = request.POST.get('table_name')
+        if action == 'vacuum' and table_name:
+            try:
                 with connection.cursor() as cursor:
-                    cursor.execute("""
-                        SELECT indexname, indexdef
-                        FROM pg_indexes
-                        WHERE tablename = %s;
-                    """, [selected_table])
-                    indexes = [{'name': r[0], 'definition': r[1]} for r in cursor.fetchall()]
-        elif action == 'vacuum' and request.GET.get('table'):
-            selected_table = request.GET.get('table')
-            vacuum_steps = [f'VACUUM (VERBOSE, ANALYZE) {selected_table};']
-        elif action == 'reindex' and request.GET.get('table'):
-            selected_table = request.GET.get('table')
-            vacuum_steps = [f'REINDEX TABLE {selected_table};']
-        elif action == 'slow_query':
-            if db_vendor == 'postgresql':
+                    cursor.execute(f'VACUUM FULL {table_name};')
+                record, _ = DbMaintenance.objects.get_or_create(table_name=table_name)
+                record.vacuum_status = 'Done'
+                record.last_maintenance = datetime.now()
+                record.save()
+                message = f'VACUUM FULL completed on {table_name}.'
+            except Exception as e:
+                error = str(e)
+        elif action == 'reindex' and table_name:
+            try:
                 with connection.cursor() as cursor:
-                    cursor.execute("""
-                        SELECT 
-                            now() - pg_stat_activity.query_start AS duration,
-                            query,
-                            state
-                        FROM pg_stat_activity
-                        WHERE state = 'active'
-                          AND query NOT ILIKE '%pg_stat_activity%'
-                        ORDER BY duration DESC
-                        LIMIT 20;
-                    """)
-                    rows = cursor.fetchall()
-                    result = {
-                        'headers': ['Duration', 'Query', 'State'],
-                        'rows': rows
-                    }
+                    cursor.execute(f'REINDEX TABLE {table_name};')
+                record, _ = DbMaintenance.objects.get_or_create(table_name=table_name)
+                record.rebuild_status = 'Done'
+                record.last_maintenance = datetime.now()
+                record.save()
+                message = f'Reindex completed on {table_name}.'
+            except Exception as e:
+                error = str(e)
+        elif action == 'indexes' and table_name:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(f'REINDEX TABLE {table_name};')
+                record, _ = DbMaintenance.objects.get_or_create(table_name=table_name)
+                record.index_status = 'Done'
+                record.last_maintenance = datetime.now()
+                record.save()
+                message = f'Index rebuilt on {table_name}.'
+            except Exception as e:
+                error = str(e)
+
+    for table in tables:
+        record, _ = DbMaintenance.objects.get_or_create(table_name=table)
+        stats = table_stats.get(table, {})
+        maintenance_records.append({
+            'table_name': table,
+            'vacuum_status': record.vacuum_status,
+            'index_status': record.index_status,
+            'rebuild_status': record.rebuild_status,
+            'record_count': stats.get('count', '-'),
+            'table_size': stats.get('size', '-'),
+            'last_maintenance': record.last_maintenance,
+        })
 
     return render(request, 'db_maintenance.html', {
-        'result': result,
-        'error': error,
-        'action': action,
-        'tables': tables,
-        'indexes': indexes,
-        'selected_table': selected_table,
-        'vacuum_steps': vacuum_steps,
-        'vacuum_output': vacuum_output,
+        'tables': maintenance_records,
         'db_vendor': db_vendor,
+        'error': error,
+        'message': message,
     })

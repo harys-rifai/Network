@@ -3,13 +3,13 @@ import json
 
 class Scan(models.Model):
     ip = models.GenericIPAddressField(db_index=True)
-    device = models.CharField(max_length=255, db_index=True)
-    os = models.CharField(max_length=255, db_index=True)
-    brand = models.CharField(max_length=255, blank=True, null=True, db_index=True)
+    device = models.CharField(max_length=255)
+    os = models.CharField(max_length=255)
+    brand = models.CharField(max_length=255, blank=True, null=True)
     gateway = models.GenericIPAddressField(blank=True, null=True, db_index=True)
     router = models.GenericIPAddressField(blank=True, null=True)
     dns = models.GenericIPAddressField(blank=True, null=True)
-    mac_address = models.CharField(max_length=17, blank=True, null=True, db_index=True)
+    mac_address = models.CharField(max_length=17, blank=True, null=True)
     latency_ms = models.FloatField(blank=True, null=True)
     open_ports = models.JSONField(blank=True, null=True)
     services = models.JSONField(blank=True, null=True)
@@ -20,6 +20,8 @@ class Scan(models.Model):
         indexes = [
             models.Index(fields=['ip', 'scanned_at']),
             models.Index(fields=['os', 'brand']),
+            models.Index(fields=['device']),
+            models.Index(fields=['mac_address']),
         ]
 
     def __str__(self):

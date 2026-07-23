@@ -20,7 +20,27 @@
 
 <div class="db-unified">
     <div class="db-card db-card--main">
-        <h2>Database Tables</h2>
+        <div class="db-header">
+            <h2>Database Tables</h2>
+            <div class="db-actions">
+                <form method="post" class="db-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="vacuum_all">
+                    <button type="submit" class="btn-small btn-primary-small">VACUUM FULL</button>
+                </form>
+                <form method="post" class="db-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reindex_all">
+                    <button type="submit" class="btn-small">Reindex</button>
+                </form>
+                <form method="post" class="db-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="list_all_indexes">
+                    <button type="submit" class="btn-small">Indexes</button>
+                </form>
+            </div>
+        </div>
+
         <p class="db-subtitle">Tables in database: <code>{{ db_vendor }}</code></p>
 
         {% if tables %}
@@ -33,7 +53,6 @@
                         <th>Index Status</th>
                         <th>Rebuild Status</th>
                         <th>Records</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -41,46 +60,27 @@
                     <tr>
                         <td><code>{{ table }}</code></td>
                         <td>
-                            {% if action == 'vacuum' and selected_table == table %}
+                            {% if action == 'vacuum' or action == 'vacuum_all' %}
                             <span class="status-pill status-online">Done</span>
                             {% else %}
                             <span class="status-pill">Ready</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if action == 'list_indexes' and selected_table == table %}
+                            {% if action == 'list_indexes' or action == 'list_all_indexes' %}
                             <span class="status-pill status-online">{{ indexes|length }} idx</span>
                             {% else %}
                             <span class="status-pill">-</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if action == 'reindex' and selected_table == table %}
+                            {% if action == 'reindex' or action == 'reindex_all' %}
                             <span class="status-pill status-online">Done</span>
                             {% else %}
                             <span class="status-pill">-</span>
                             {% endif %}
                         </td>
                         <td class="status-meta">-</td>
-                        <td class="actions">
-                            <form method="post" class="db-inline-form">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="vacuum">
-                                <input type="hidden" name="table_name" value="{{ table }}">
-                                <input type="hidden" name="vacuum_type" value="full">
-                                <button type="submit" class="btn-small btn-primary-small">VACUUM FULL</button>
-                            </form>
-                            <form method="get" class="db-inline-form">
-                                <input type="hidden" name="action" value="reindex">
-                                <input type="hidden" name="table" value="{{ table }}">
-                                <button type="submit" class="btn-small">Reindex</button>
-                            </form>
-                            <form method="get" class="db-inline-form">
-                                <input type="hidden" name="action" value="list_indexes">
-                                <input type="hidden" name="table" value="{{ table }}">
-                                <button type="submit" class="btn-small">Indexes</button>
-                            </form>
-                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -120,12 +120,15 @@
 
         {% if indexes %}
         <div class="db-result-block" style="margin-top:1rem;">
-            <h3>Indexes on {{ selected_table }}</h3>
-            <div class="table-wrapper">
+            <h3>Indexes</h3>
+            {% if show_all_indexes %}
+            {% for table, idxs in indexes.items %}
+            <h4 style="color:var(--text-secondary); margin: 1rem 0 0.5rem; font-size:0.85rem;">{{ table }}</h4>
+            <div class="table-wrapper" style="margin-bottom:0.75rem;">
                 <table class="hacker-table">
                     <thead><tr><th>Index Name</th><th>Definition</th></tr></thead>
                     <tbody>
-                        {% for idx in indexes %}
+                        {% for idx in idxs %}
                         <tr>
                             <td><code>{{ idx.name }}</code></td>
                             <td class="query-cell">{{ idx.definition }}</td>
@@ -134,12 +137,29 @@
                     </tbody>
                 </table>
             </div>
+            {% endfor %}
+            {% else %}
+            <div class="table-wrapper">
+                <table class="hacker-table">
+                    <thead><tr><th>Table</th><th>Index Name</th><th>Definition</th></tr></thead>
+                    <tbody>
+                        {% for idx in indexes %}
+                        <tr>
+                            <td><code>{{ selected_table }}</code></td>
+                            <td><code>{{ idx.name }}</code></td>
+                            <td class="query-cell">{{ idx.definition }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
 
         {% if vacuum_steps %}
         <div class="db-result-block db-result-block--success" style="margin-top:1rem;">
-            <h3>Execution Completed: {{ selected_table }}</h3>
+            <h3>Execution Completed</h3>
             <div class="vacuum-steps">
                 {% for step in vacuum_steps %}
                 <div class="vacuum-step">
