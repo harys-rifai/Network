@@ -37,12 +37,12 @@ Aplikasi berbasis **Django** untuk:
 ```bash
 git clone <repo>
 cd network
-python3.11 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python3.11 manage.py migrate
-python3.11 manage.py createsuperuser
-python3.11 manage.py runserver
+python3 manage.py migrate
+python3 manage.py createsuperuser
+python3 manage.py runserver
 ```
 
 Buka `http://127.0.0.1:8000/accounts/login/` dan login dengan akun superuser.

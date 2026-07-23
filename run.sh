@@ -15,7 +15,7 @@ stop_server() {
 
 start_server() {
     echo "Starting Django server..."
-    exec python3.11 manage.py runserver
+    exec python3 manage.py runserver
 }
 
 ACTION="${1:-start}"

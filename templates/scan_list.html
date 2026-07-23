@@ -55,7 +55,11 @@
                 {% if scan.open_ports %}
                 <div class="port-list">
                     {% for port in scan.open_ports %}
-                    <span class="port-badge port-{{ port|port_risk|lower }}">{{ port }}</span>
+                    {% with service=scan.services|get_item:forloop.counter0 %}
+                    <span class="port-badge port-{{ port|port_risk|lower }}" title="Port {{ port }}{% if service %} - {{ service }}{% endif %}">
+                        {{ port }}{% if service %} {{ service }}{% endif %}
+                    </span>
+                    {% endwith %}
                     {% endfor %}
                 </div>
                 {% else %}
