@@ -9,18 +9,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    {% if user.is_authenticated %}
     <nav class="navbar">
-        <div class="logo">&#9608; NET-MON</div>
+        <div class="logo">NET-MON</div>
         <ul class="nav-links">
             <li><a href="/">Dashboard</a></li>
             <li><a href="/scan/">Scan Results</a></li>
             <li><a href="/scan/add/">New Scan</a></li>
             <li><a href="/network-map/">Network Map</a></li>
-            {% if user.is_authenticated %}
-                <li><form method="post" action="{% url 'logout' %}" class="logout-form">{% csrf_token %}<button type="submit" class="btn-logout">LOGOUT</button></form></li>
-            {% endif %}
+            <li><form method="post" action="{% url 'logout' %}" class="logout-form">{% csrf_token %}<button type="submit" class="btn-logout">LOGOUT</button></form></li>
         </ul>
     </nav>
+    {% endif %}
     <main class="container">
         {% block content %}{% endblock %}
     </main>
