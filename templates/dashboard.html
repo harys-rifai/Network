@@ -70,7 +70,7 @@ new Chart(osCtx, {
     type: 'doughnut',
     data: {
         labels: {{ os_labels|safe }},
-        datasets: [{ data: {{ os_data|safe }}, backgroundColor: ['#facc15','#eab308','#f59e0b','#6366f1','#ef4444','#94a3b8','#64748b'] }]
+        datasets: [{ data: {{ os_data|safe }}, backgroundColor: ['#facc15','#22c55e','#eab308','#6366f1','#ef4444','#94a3b8','#64748b'] }]
     },
     options: {
         responsive: true,
@@ -86,7 +86,7 @@ new Chart(brandCtx, {
     type: 'doughnut',
     data: {
         labels: {{ brand_labels|safe }},
-        datasets: [{ data: {{ brand_data|safe }}, backgroundColor: ['#facc15','#eab308','#f59e0b','#6366f1','#ef4444','#94a3b8','#64748b'] }]
+        datasets: [{ data: {{ brand_data|safe }}, backgroundColor: ['#22c55e','#facc15','#eab308','#6366f1','#ef4444','#94a3b8','#64748b'] }]
     },
     options: {
         responsive: true,

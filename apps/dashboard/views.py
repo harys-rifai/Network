@@ -48,14 +48,41 @@ def dashboard(request):
 @login_required
 def network_map(request):
     scans = Scan.objects.all()
+    total = scans.count()
+    online = scans.filter(open_ports__isnull=False).exclude(open_ports=[]).count()
+    gateway_ip = scans.filter(gateway__isnull=False).values_list('gateway', flat=True).first()
+    gateway_id = 0
     nodes = []
     edges = []
     for scan in scans:
-        nodes.append({'id': scan.id, 'label': f"{scan.ip}\n{scan.device}", 'title': scan.os})
-        if scan.gateway:
-            edges.append({'from': scan.id, 'to': 0, 'arrows': 'to'})
-    # Add gateway node
-    if scans.exists():
-        nodes.insert(0, {'id': 0, 'label': 'Gateway\n192.168.1.1', 'title': 'Gateway', 'color': '#00ff00'})
+        is_gateway = scan.gateway and str(scan.gateway) == str(gateway_ip)
+        if is_gateway:
+            gateway_id = scan.id
+        nodes.append({
+            'id': scan.id,
+            'label': f"{scan.ip}\n{scan.device}",
+            'title': f"{scan.os} · {scan.brand or 'Unknown'}\nLatency: {scan.latency_ms or 'N/A'} ms",
+            'color': '#22c55e' if is_gateway else '#facc15',
+            'font': { 'color': '#e5e7eb', 'size': 12 }
+        })
+        if scan.gateway and not is_gateway:
+            edges.append({'from': scan.id, 'to': gateway_id or 0, 'arrows': 'to', 'color': { 'color': '#22c55e', 'highlight': '#facc15' }})
+    if gateway_id == 0 and scans.exists():
+        nodes.insert(0, {
+            'id': 0,
+            'label': f"Gateway\n{gateway_ip or '192.168.1.1'}",
+            'title': 'Gateway Router',
+            'color': '#22c55e',
+            'font': { 'color': '#e5e7eb', 'size': 13 }
+        })
+        for scan in scans:
+            if scan.id != 0:
+                edges.append({'from': scan.id, 'to': 0, 'arrows': 'to', 'color': { 'color': '#22c55e', 'highlight': '#facc15' }})
     networks = {'nodes': nodes, 'edges': edges}
-    return render(request, 'network_map.html', {'networks': json.dumps(networks)})
+    return render(request, 'network_map.html', {
+        'networks': json.dumps(networks),
+        'total_devices': total,
+        'online_count': online,
+        'gateway_ip': gateway_ip or '192.168.1.1',
+        'scans': scans,
+    })

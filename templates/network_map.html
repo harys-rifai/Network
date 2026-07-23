@@ -1,9 +1,46 @@
 {% extends 'base.html' %}
+{% load scan_extras %}
 
 {% block content %}
-<div class="chart-box" style="width:100%; height:600px;">
-    <h2>Network Topology</h2>
-    <div id="network" style="width:100%; height:550px; border:1px solid #00ff00;"></div>
+<div class="page-header">
+    <h1>Network Topology</h1>
+    <div class="network-stats">
+        <span class="stat-pill">Total: {{ total_devices }}</span>
+        <span class="stat-pill stat-online">Online: {{ online_count }}</span>
+        <span class="stat-pill stat-gateway">Gateway: {{ gateway_ip }}</span>
+    </div>
+</div>
+
+<div class="network-layout">
+    <div class="network-main">
+        <div class="chart-box network-map-box">
+            <div id="network" class="network-canvas"></div>
+        </div>
+    </div>
+    <div class="network-side">
+        <div class="chart-box">
+            <h2>Legend</h2>
+            <div class="legend-list">
+                <div class="legend-item"><span class="legend-dot" style="background:#22c55e;box-shadow:0 0 8px #22c55e;"></span><span>Gateway</span></div>
+                <div class="legend-item"><span class="legend-dot" style="background:#facc15;box-shadow:0 0 8px #facc15;"></span><span>Device</span></div>
+                <div class="legend-item"><span class="legend-line" style="background:#22c55e;box-shadow:0 0 6px #22c55e;"></span><span>Connection</span></div>
+            </div>
+        </div>
+        <div class="chart-box">
+            <h2>Status</h2>
+            <div class="status-list">
+                {% for scan in scans|slice:":15" %}
+                <div class="status-item status-item--{{ scan.os|lower|cut:' ' }}">
+                    <span class="status-dot"></span>
+                    <span class="status-label">{{ scan.ip }}</span>
+                    <span class="status-text">{{ scan.device }}</span>
+                </div>
+                {% empty %}
+                <p class="note">No scan data available.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -12,10 +49,28 @@
 const container = document.getElementById('network');
 const data = {{ networks|safe }};
 const options = {
-    nodes: { shape: 'dot', size: 20, font: { color: '#00ff00' } },
-    edges: { color: { color: '#00ff00', highlight: '#ff0033' }, arrows: { to: { enabled: true } } },
-    physics: { stabilization: false }
+    nodes: {
+        shape: 'dot',
+        size: 18,
+        font: { color: '#e5e7eb', size: 12, face: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
+        borderWidth: 2,
+        shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 8 }
+    },
+    edges: {
+        width: 1.5,
+        color: { color: '#22c55e', highlight: '#facc15', opacity: 0.8 },
+        arrows: { to: { enabled: true, scaleFactor: 0.6 } },
+        smooth: { type: 'continuous', roundness: 0.5 }
+    },
+    physics: {
+        stabilization: true,
+        barnesHut: { gravitationalConstant: -2800, springLength: 140, springConstant: 0.04 }
+    },
+    interaction: { hover: true, tooltipDelay: 80 }
 };
 const network = new vis.Network(container, data, options);
+network.once('stabilized', function() {
+    network.fit({ animation: { duration: 800, easingFunction: 'easeInOutQuad' }});
+});
 </script>
 {% endblock %}
