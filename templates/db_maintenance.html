@@ -18,66 +18,57 @@
 </div>
 {% endif %}
 
-{% if result %}
-<div class="result-box" style="margin-bottom:1.25rem;">
-    {% if action == 'slow_query' %}
-    <h3>Active Queries</h3>
-    <div class="table-wrapper">
-        <table class="hacker-table">
-            <thead>
-                <tr>
-                    <th>Duration</th>
-                    <th>Query</th>
-                    <th>State</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in result.rows %}
-                <tr>
-                    <td>{{ row.0 }}</td>
-                    <td class="query-cell">{{ row.1 }}</td>
-                    <td>{{ row.2 }}</td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="3">No active slow queries found.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
-</div>
-{% endif %}
-
-<div class="db-grid">
-    <div class="db-card">
+<div class="db-unified">
+    <div class="db-card db-card--main">
         <h2>Database Tables</h2>
-        <p>Tables in database: <code>{{ db_vendor }}</code></p>
-        <form method="get" class="db-form">
-            <input type="hidden" name="action" value="list_tables">
-            <button type="submit" class="btn-small">Refresh Tables</button>
-        </form>
+        <p class="db-subtitle">Tables in database: <code>{{ db_vendor }}</code></p>
+
         {% if tables %}
-        <div class="table-wrapper" style="margin-top:0.75rem;">
+        <div class="table-wrapper">
             <table class="hacker-table">
-                <thead><tr><th>Table Name</th><th>Actions</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Table Name</th>
+                        <th>Vacuum Status</th>
+                        <th>Index Status</th>
+                        <th>Rebuild Status</th>
+                        <th>Records</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for table in tables %}
                     <tr>
                         <td><code>{{ table }}</code></td>
+                        <td>
+                            {% if action == 'vacuum' and selected_table == table %}
+                            <span class="status-pill status-online">Done</span>
+                            {% else %}
+                            <span class="status-pill">Ready</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if action == 'list_indexes' and selected_table == table %}
+                            <span class="status-pill status-online">{{ indexes|length }} idx</span>
+                            {% else %}
+                            <span class="status-pill">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if action == 'reindex' and selected_table == table %}
+                            <span class="status-pill status-online">Done</span>
+                            {% else %}
+                            <span class="status-pill">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="status-meta">-</td>
                         <td class="actions">
-                            <form method="post" class="db-inline-form db-vacuum-form">
+                            <form method="post" class="db-inline-form">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="vacuum">
                                 <input type="hidden" name="table_name" value="{{ table }}">
-                                <select name="vacuum_type" class="db-vacuum-select">
-                                    <option value="analyze">VACUUM ANALYZE</option>
-                                    <option value="full">VACUUM FULL</option>
-                                    <option value="verbose_full">VACUUM VERBOSE FULL</option>
-                                    <option value="full_analyze">VACUUM (VERBOSE, FULL, ANALYZE)</option>
-                                    <option value="verbose">VACUUM VERBOSE</option>
-                                    <option value="freeze">VACUUM FREEZE</option>
-                                </select>
-                                <button type="submit" class="btn-small btn-primary-small">Run</button>
+                                <input type="hidden" name="vacuum_type" value="full">
+                                <button type="submit" class="btn-small btn-primary-small">VACUUM FULL</button>
                             </form>
                             <form method="get" class="db-inline-form">
                                 <input type="hidden" name="action" value="reindex">
@@ -98,49 +89,67 @@
         {% else %}
         <p class="note">No tables found or not PostgreSQL.</p>
         {% endif %}
-    </div>
 
-    {% if indexes %}
-    <div class="db-card">
-        <h2>Indexes on {{ selected_table }}</h2>
-        <div class="table-wrapper">
-            <table class="hacker-table">
-                <thead><tr><th>Index Name</th><th>Definition</th></tr></thead>
-                <tbody>
-                    {% for idx in indexes %}
-                    <tr>
-                        <td><code>{{ idx.name }}</code></td>
-                        <td class="query-cell">{{ idx.definition }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {% if result %}
+        <div class="db-result-block" style="margin-top:1rem;">
+            <h3>Query Result</h3>
+            <div class="table-wrapper">
+                <table class="hacker-table">
+                    <thead>
+                        <tr>
+                            {% for header in result.headers %}
+                            <th>{{ header }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in result.rows %}
+                        <tr>
+                            {% for cell in row %}
+                            <td class="query-cell">{{ cell }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="{{ result.headers|length }}">No data found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
 
-    <div class="db-card">
-        <h2>Slow Query Check</h2>
-        <p>Show currently running queries on the database.</p>
-        <form method="post" class="db-form">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="slow_query">
-            <button type="submit" class="btn-primary">Check Slow Queries</button>
-        </form>
+        {% if indexes %}
+        <div class="db-result-block" style="margin-top:1rem;">
+            <h3>Indexes on {{ selected_table }}</h3>
+            <div class="table-wrapper">
+                <table class="hacker-table">
+                    <thead><tr><th>Index Name</th><th>Definition</th></tr></thead>
+                    <tbody>
+                        {% for idx in indexes %}
+                        <tr>
+                            <td><code>{{ idx.name }}</code></td>
+                            <td class="query-cell">{{ idx.definition }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if vacuum_steps %}
+        <div class="db-result-block db-result-block--success" style="margin-top:1rem;">
+            <h3>Execution Completed: {{ selected_table }}</h3>
+            <div class="vacuum-steps">
+                {% for step in vacuum_steps %}
+                <div class="vacuum-step">
+                    <span class="step-num">{{ forloop.counter }}</span>
+                    <code>{{ step }}</code>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
-
-{% if vacuum_steps %}
-<div class="result-box" style="margin-top:1.25rem;">
-    <h3>Vacuum Steps for {{ selected_table }}</h3>
-    <div class="vacuum-steps">
-        {% for step in vacuum_steps %}
-        <div class="vacuum-step">
-            <span class="step-num">{{ forloop.counter }}</span>
-            <code>{{ step }}</code>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
 {% endblock %}
