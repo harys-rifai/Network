@@ -56,3 +56,27 @@ def sort_url(context, field, label=''):
         else:
             text = mark_safe(text + ' <span class="sort-arrow">▼</span>')
     return format_html('<a href="{}">{}</a>', href, text)
+
+@register.simple_tag(takes_context=True)
+def duplicate_counts(context, field):
+    request = context.get('request')
+    page_obj = context.get('page_obj')
+    if not page_obj:
+        return {}
+    queryset = context.get('filtered_queryset') or page_obj.object_list
+    from collections import Counter
+    values = [getattr(obj, field) for obj in queryset if getattr(obj, field)]
+    counts = Counter(values)
+    return {val: cnt for val, cnt in counts.items() if cnt > 1}
+
+@register.filter
+def is_duplicate(value, counts):
+    if not value:
+        return False
+    return counts.get(value, 0) > 1
+
+@register.filter
+def duplicate_count(value, counts):
+    if not value:
+        return 0
+    return counts.get(value, 0)

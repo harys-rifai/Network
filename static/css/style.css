@@ -152,10 +152,10 @@ a:hover { text-decoration: underline; }
     color: var(--accent-strong);
     border: 1px solid var(--border-strong);
     border-radius: var(--radius);
-    padding: 0.4rem 0.7rem;
+    padding: 0.25rem 0.45rem;
     font-family: var(--font-sans);
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     cursor: pointer;
     transition: border-color 0.15s, background 0.15s;
 }
@@ -177,12 +177,13 @@ a:hover { text-decoration: underline; }
     border-radius: var(--radius);
     overflow: hidden;
     box-shadow: 0 1px 0 rgba(255,255,255,0.02);
+    font-size: 0.8rem;
 }
-.hacker-table th, .hacker-table td { padding: 0.8rem 1rem; text-align: left; border-bottom: 1px solid var(--border-default); }
-.hacker-table th { background: rgba(255,255,255,0.02); color: var(--text-secondary); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.hacker-table th, .hacker-table td { padding: 0.35rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border-default); }
+.hacker-table th { background: rgba(255,255,255,0.02); color: var(--text-secondary); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .hacker-table tr:hover { background: rgba(34,211,238,0.04); }
 .hacker-table tr:last-child td { border-bottom: none; }
-.actions { display: flex; gap: 0.5rem; }
+.actions { display: flex; gap: 0.35rem; }
 
 .dashboard-grid {
     display: grid;
@@ -223,21 +224,21 @@ a:hover { text-decoration: underline; }
 .status-warn { color: var(--warn); border-color: rgba(245,158,11,0.25); background: rgba(245,158,11,0.08); }
 .status-danger { color: var(--danger); border-color: rgba(239,68,68,0.25); background: rgba(239,68,68,0.08); }
 
-.scan-detail { display: flex; flex-direction: column; gap: 1.25rem; }
-.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
-.detail-card { background: var(--bg-elevated); border: 1px solid var(--border-default); border-radius: var(--radius); padding: 1.25rem; box-shadow: 0 1px 0 rgba(255,255,255,0.02); }
-.detail-title { color: var(--text-secondary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
-.detail-row { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border-subtle); }
+.scan-detail { display: flex; flex-direction: column; gap: 0.75rem; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.75rem; }
+.detail-card { background: var(--bg-elevated); border: 1px solid var(--border-default); border-radius: var(--radius); padding: 0.75rem; box-shadow: 0 1px 0 rgba(255,255,255,0.02); }
+.detail-title { color: var(--text-secondary); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+.detail-row { display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; border-bottom: 1px solid var(--border-subtle); }
 .detail-row:last-child { border-bottom: none; }
-.detail-label { color: var(--text-secondary); font-size: 0.85rem; }
-.detail-value { color: var(--text-primary); font-weight: 600; font-size: 0.9rem; text-align: right; max-width: 60%; word-break: break-all; }
+.detail-label { color: var(--text-secondary); font-size: 0.8rem; }
+.detail-value { color: var(--text-primary); font-weight: 600; font-size: 0.85rem; text-align: right; max-width: 60%; word-break: break-all; }
 
 .meta-card { max-width: 640px; }
 
 .table-wrapper { overflow-x: auto; }
-.ports-table { width: 100%; border-collapse: collapse; }
-.ports-table th, .ports-table td { padding: 0.65rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border-default); font-size: 0.9rem; }
-.ports-table th { color: var(--text-secondary); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; background: rgba(255,255,255,0.02); }
+.ports-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.ports-table th, .ports-table td { padding: 0.35rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border-default); }
+.ports-table th { color: var(--text-secondary); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; background: rgba(255,255,255,0.02); }
 .port-number { font-family: var(--font-mono); color: var(--accent); font-weight: 700; }
 .port-service { font-family: var(--font-mono); color: var(--text-primary); }
 .port-risk { font-weight: 700; }
@@ -249,20 +250,29 @@ a:hover { text-decoration: underline; }
 .hacker-table th a:hover { color: var(--accent-strong); text-decoration: none; }
 .sort-arrow { color: var(--accent-strong); margin-left: 0.25rem; font-size: 0.7rem; }
 
-.pagination { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0.5rem; }
-.pagination-info { color: var(--text-muted); font-size: 0.8rem; }
-.pagination-actions { display: flex; gap: 0.5rem; }
+.pagination { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0.5rem; }
+.pagination-info { color: var(--text-muted); font-size: 0.75rem; }
+.pagination-actions { display: flex; gap: 0.35rem; }
 .btn-pagination {
     background: transparent;
     color: var(--accent-strong);
     border: 1px solid var(--border-strong);
     border-radius: var(--radius);
-    padding: 0.35rem 0.65rem;
+    padding: 0.25rem 0.5rem;
     font-family: var(--font-sans);
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
     text-decoration: none;
 }
 .btn-pagination:hover { background: rgba(34,211,238,0.08); border-color: var(--accent-strong); text-decoration: none; }
+
+.alert-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem; }
+.alert-card { padding: 0.5rem 0.75rem; border-radius: var(--radius); font-size: 0.8rem; font-weight: 600; border: 1px solid; }
+.alert-warn { color: var(--warn); border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.08); }
+.alert-danger { color: var(--danger); border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.08); }
+
+.dup-badge { display: inline-flex; margin-left: 0.5rem; padding: 0.15rem 0.45rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 700; border: 1px solid; }
+.dup-ip { color: var(--warn); border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.08); }
+.dup-mac { color: var(--danger); border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.08); }

@@ -22,13 +22,23 @@ def scan_list(request):
         sort = f'-{sort}'
 
     queryset = Scan.objects.all().order_by(sort)
+    unique_ip_count = queryset.values('ip').count()
+    unique_mac_count = queryset.exclude(mac_address__isnull=True).exclude(mac_address='').values('mac_address').count()
+    duplicate_ips = queryset.values('ip').annotate(cnt=Count('id')).filter(cnt__gt=1).count()
+    duplicate_macs = queryset.exclude(mac_address__isnull=True).exclude(mac_address='').values('mac_address').annotate(cnt=Count('id')).filter(cnt__gt=1).count()
+
     page_number = request.GET.get('page', 1)
     paginator = Paginator(queryset, 10)
     page_obj = paginator.get_page(page_number)
     return render(request, 'scan_list.html', {
         'page_obj': page_obj,
+        'filtered_queryset': queryset,
         'current_sort': sort if not sort.startswith('-') else sort[1:],
         'current_order': order,
+        'duplicate_ips': duplicate_ips,
+        'duplicate_macs': duplicate_macs,
+        'unique_ip_count': unique_ip_count,
+        'unique_mac_count': unique_mac_count,
     })
 
 @login_required
@@ -72,23 +82,30 @@ def scan_trigger(request):
             messages.error(request, f'Scan failed: {str(e)}')
             return redirect('scan_trigger')
         added = 0
+        updated = 0
         for r in results:
             services_dict = dict(zip(r.get('open_ports', []), r.get('services', []))) if r.get('open_ports') else None
-            Scan.objects.create(
+            obj, created = Scan.objects.update_or_create(
                 ip=r['ip'],
-                device=r['device'],
-                os=r['os'],
-                brand=r['brand'],
-                gateway=r['gateway'],
-                router=r['router'],
-                dns=r['dns'],
-                mac_address=r.get('mac_address'),
-                latency_ms=r.get('latency_ms'),
-                open_ports=r.get('open_ports'),
-                services=services_dict,
+                defaults={
+                    'device': r['device'],
+                    'os': r['os'],
+                    'brand': r['brand'],
+                    'gateway': r['gateway'],
+                    'router': r['router'],
+                    'dns': r['dns'],
+                    'mac_address': r.get('mac_address'),
+                    'latency_ms': r.get('latency_ms'),
+                    'open_ports': r.get('open_ports'),
+                    'services': services_dict,
+                }
             )
-            added += 1
-        messages.success(request, f'Scan completed. {added} live host(s) discovered.')
+            if created:
+                added += 1
+            else:
+                updated += 1
+        msg = f'Scan completed. {added} new, {updated} updated.'
+        messages.success(request, msg)
         return redirect('scan_list')
     iface_name, ip_addr, netmask = get_active_interface()
     subnet = None

@@ -6,6 +6,16 @@
     <h1>Scan Results</h1>
     <a href="{% url 'scan_trigger' %}" class="btn-primary">+ New Scan</a>
 </div>
+{% if duplicate_ips or duplicate_macs %}
+<div class="alert-row">
+    {% if duplicate_ips %}
+    <div class="alert-card alert-warn">Duplicate IP detected: {{ duplicate_ips }} duplicate IP value{{ duplicate_ips|pluralize }}</div>
+    {% endif %}
+    {% if duplicate_macs %}
+    <div class="alert-card alert-danger">Duplicate MAC detected: {{ duplicate_macs }} duplicate MAC value{{ duplicate_macs|pluralize }}</div>
+    {% endif %}
+</div>
+{% endif %}
 <table class="hacker-table">
     <thead>
         <tr>
@@ -20,13 +30,25 @@
         </tr>
     </thead>
     <tbody>
+        {% duplicate_counts 'ip' as ip_counts %}
+        {% duplicate_counts 'mac_address' as mac_counts %}
         {% for scan in page_obj %}
         <tr>
-            <td><a href="{% url 'scan_detail' scan.pk %}">{{ scan.ip }}</a></td>
+            <td>
+                <a href="{% url 'scan_detail' scan.pk %}">{{ scan.ip }}</a>
+                {% if scan.ip|is_duplicate:ip_counts %}
+                <span class="dup-badge dup-ip">Duplicate IP x{{ scan.ip|duplicate_count:ip_counts }}</span>
+                {% endif %}
+            </td>
             <td>{{ scan.device }}</td>
             <td>{{ scan.os }}</td>
             <td>{{ scan.brand }}</td>
-            <td>{{ scan.mac_address|default:"—" }}</td>
+            <td>
+                {{ scan.mac_address|default:"—" }}
+                {% if scan.mac_address|is_duplicate:mac_counts %}
+                <span class="dup-badge dup-mac">Duplicate MAC x{{ scan.mac_address|duplicate_count:mac_counts }}</span>
+                {% endif %}
+            </td>
             <td>{{ scan.latency_ms|default:"—" }} ms</td>
             <td>{{ scan.scanned_at|date:"Y-m-d H:i" }}</td>
             <td class="actions">
