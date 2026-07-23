@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load scan_extras %}
 
 {% block content %}
 <div class="page-header">
@@ -6,7 +7,18 @@
     <a href="{% url 'scan_trigger' %}" class="btn-primary">+ New Scan</a>
 </div>
 <table class="hacker-table">
-    <thead><tr><th>IP</th><th>Device</th><th>OS</th><th>Brand</th><th>MAC</th><th>Latency</th><th>Scanned At</th><th>Actions</th></tr></thead>
+    <thead>
+        <tr>
+            <th>{% sort_url 'ip' %}</th>
+            <th>{% sort_url 'device' %}</th>
+            <th>{% sort_url 'os' %}</th>
+            <th>{% sort_url 'brand' %}</th>
+            <th>{% sort_url 'mac_address' 'MAC' %}</th>
+            <th>{% sort_url 'latency_ms' 'Latency' %}</th>
+            <th>{% sort_url 'scanned_at' 'Scanned At' %}</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
     <tbody>
         {% for scan in page_obj %}
         <tr>

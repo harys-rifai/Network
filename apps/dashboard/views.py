@@ -10,7 +10,20 @@ def dashboard(request):
     total_devices = Scan.objects.count()
     os_stats = Scan.objects.values('os').annotate(count=Count('id')).order_by('-count')
     brand_stats = Scan.objects.values('brand').annotate(count=Count('id')).order_by('-count')
-    recent_page = Paginator(Scan.objects.all(), 10).get_page(request.GET.get('page', 1))
+
+    sort = request.GET.get('sort', '-scanned_at')
+    order = request.GET.get('order', 'desc')
+    allowed = {'ip', 'device', 'os', 'brand', 'scanned_at'}
+    if sort not in allowed:
+        sort = '-scanned_at'
+    if order not in {'asc', 'desc'}:
+        order = 'desc'
+    if order == 'asc' and sort.startswith('-'):
+        sort = sort[1:]
+    elif order == 'desc' and not sort.startswith('-'):
+        sort = f'-{sort}'
+
+    recent_page = Paginator(Scan.objects.all().order_by(sort), 10).get_page(request.GET.get('page', 1))
 
     os_labels = [item['os'] for item in os_stats]
     os_data = [item['count'] for item in os_stats]
@@ -23,6 +36,8 @@ def dashboard(request):
         'brand_stats': brand_stats,
         'recent_scans': recent_page,
         'page_obj': recent_page,
+        'current_sort': sort if not sort.startswith('-') else sort[1:],
+        'current_order': order,
         'os_labels': json.dumps(os_labels),
         'os_data': json.dumps(os_data),
         'brand_labels': json.dumps(brand_labels),

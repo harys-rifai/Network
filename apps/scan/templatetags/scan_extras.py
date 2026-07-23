@@ -1,4 +1,7 @@
 from django import template
+from django.utils.http import urlencode
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 register = template.Library()
 
@@ -27,3 +30,29 @@ def port_risk(port):
     if p in medium:
         return 'Medium'
     return 'Low'
+
+@register.simple_tag(takes_context=True)
+def sort_url(context, field, label=''):
+    request = context.get('request')
+    if not request:
+        return label or field
+    query = request.GET.copy()
+    current_sort = query.get('sort', '')
+    current_order = query.get('order', 'desc')
+    if current_sort == field:
+        if current_order == 'asc':
+            query['order'] = 'desc'
+        else:
+            query['order'] = 'asc'
+    else:
+        query['sort'] = field
+        query['order'] = 'desc'
+    query.pop('page', None)
+    href = '?' + query.urlencode()
+    text = label or field
+    if current_sort == field:
+        if current_order == 'asc':
+            text = mark_safe(text + ' <span class="sort-arrow">▲</span>')
+        else:
+            text = mark_safe(text + ' <span class="sort-arrow">▼</span>')
+    return format_html('<a href="{}">{}</a>', href, text)

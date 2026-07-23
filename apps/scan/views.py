@@ -9,10 +9,27 @@ from .scanner import scan_network, get_active_interface
 
 @login_required
 def scan_list(request):
+    sort = request.GET.get('sort', '-scanned_at')
+    order = request.GET.get('order', 'desc')
+    allowed = {'ip', 'device', 'os', 'brand', 'mac_address', 'latency_ms', 'scanned_at'}
+    if sort not in allowed:
+        sort = '-scanned_at'
+    if order not in {'asc', 'desc'}:
+        order = 'desc'
+    if order == 'asc' and sort.startswith('-'):
+        sort = sort[1:]
+    elif order == 'desc' and not sort.startswith('-'):
+        sort = f'-{sort}'
+
+    queryset = Scan.objects.all().order_by(sort)
     page_number = request.GET.get('page', 1)
-    paginator = Paginator(Scan.objects.all(), 10)
+    paginator = Paginator(queryset, 10)
     page_obj = paginator.get_page(page_number)
-    return render(request, 'scan_list.html', {'page_obj': page_obj})
+    return render(request, 'scan_list.html', {
+        'page_obj': page_obj,
+        'current_sort': sort if not sort.startswith('-') else sort[1:],
+        'current_order': order,
+    })
 
 @login_required
 def scan_detail(request, pk):

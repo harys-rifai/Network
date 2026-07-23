@@ -7,12 +7,12 @@
     </span>
     <div class="pagination-actions">
         {% if page_obj.has_previous %}
-            <a href="?page=1" class="btn-pagination">&laquo; First</a>
-            <a href="?page={{ page_obj.previous_page_number }}" class="btn-pagination">&lsaquo; Prev</a>
+            <a href="?{% if request.GET.sort %}sort={{ request.GET.sort }}&order={{ request.GET.order }}&{% endif %}page=1" class="btn-pagination">&laquo; First</a>
+            <a href="?{% if request.GET.sort %}sort={{ request.GET.sort }}&order={{ request.GET.order }}&{% endif %}page={{ page_obj.previous_page_number }}" class="btn-pagination">&lsaquo; Prev</a>
         {% endif %}
         {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}" class="btn-pagination">Next &rsaquo;</a>
-            <a href="?page={{ page_obj.paginator.num_pages }}" class="btn-pagination">Last &raquo;</a>
+            <a href="?{% if request.GET.sort %}sort={{ request.GET.sort }}&order={{ request.GET.order }}&{% endif %}page={{ page_obj.next_page_number }}" class="btn-pagination">Next &rsaquo;</a>
+            <a href="?{% if request.GET.sort %}sort={{ request.GET.sort }}&order={{ request.GET.order }}&{% endif %}page={{ page_obj.paginator.num_pages }}" class="btn-pagination">Last &raquo;</a>
         {% endif %}
     </div>
 </div>
