@@ -43,7 +43,7 @@
             </td>
             <td>{{ scan.device }}</td>
             <td>{{ scan.os }}</td>
-            <td>{{ scan.brand }}</td>
+            <td>{{ scan.brand }}{% if scan.brand == "Unknown" and scan.mac_address %} <span class="text-muted">({{ scan.mac_address|mac_vendor_from_mac|default:"Unknown Vendor" }})</span>{% endif %}</td>
             <td>
                 {{ scan.mac_address|default:"—" }}
                 {% if scan.mac_address|is_duplicate:mac_counts %}

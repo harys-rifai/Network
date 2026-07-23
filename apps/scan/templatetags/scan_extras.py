@@ -31,6 +31,13 @@ def port_risk(port):
         return 'Medium'
     return 'Low'
 
+@register.filter
+def mac_vendor_from_mac(mac):
+    if not mac:
+        return 'Unknown'
+    from ..scanner import mac_to_vendor
+    return mac_to_vendor(mac)
+
 @register.simple_tag(takes_context=True)
 def sort_url(context, field, label=''):
     request = context.get('request')

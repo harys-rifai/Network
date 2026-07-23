@@ -6,8 +6,10 @@ from django.db.models import Count, Q
 from django.core.paginator import Paginator
 from django.conf import settings
 from django.db import connection
+from django.core.cache import cache
 from apps.scan.models import Scan
 from apps.scan.scanner import get_public_ip, get_isp_info, get_wan_interface_info
+from .models import DbMaintenance
 from .models import DbMaintenance
 
 @login_required
