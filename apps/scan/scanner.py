@@ -320,8 +320,8 @@ def guess_brand(hostname, mac, services):
             return 'Web Server'
         if 'SSH' in svc_set:
             return 'Linux/Embedded'
-    if {'SMB','NetBIOS'} <= svc_set:
-        return 'Windows PC'
+        if {'SMB','NetBIOS'} <= svc_set:
+            return 'Windows PC'
     return 'Unknown'
 
 def guess_os_from_ttl(ttl):

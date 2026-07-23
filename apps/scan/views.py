@@ -125,6 +125,9 @@ def scan_trigger(request):
                 updated += 1
         if current_subnet:
             cache.set('last_scanned_subnet', current_subnet, timeout=None)
+        cache.delete('network_public_ip')
+        cache.delete('network_isp_info')
+        cache.delete('network_wan_info')
         msg = f'Scan completed. {added} new, {updated} updated.'
         messages.success(request, msg)
         return redirect('scan_list')
@@ -166,6 +169,9 @@ def scan_trigger(request):
                 added += 1
             else:
                 updated += 1
+        cache.delete('network_public_ip')
+        cache.delete('network_isp_info')
+        cache.delete('network_wan_info')
         msg = f'Network changed! Auto-scanned {current_subnet}. {added} new, {updated} updated.'
         messages.success(request, msg)
         return redirect('scan_list')

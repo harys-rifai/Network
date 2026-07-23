@@ -133,9 +133,18 @@ def network_map(request):
 
     networks = {'nodes': nodes, 'edges': edges}
 
-    public_ip = get_public_ip()
-    isp_info = get_isp_info(public_ip)
-    wan_info = get_wan_interface_info()
+    public_ip = cache.get('network_public_ip')
+    isp_info = cache.get('network_isp_info')
+    wan_info = cache.get('network_wan_info')
+    if public_ip is None:
+        public_ip = get_public_ip()
+        cache.set('network_public_ip', public_ip, 300)
+    if isp_info is None:
+        isp_info = get_isp_info(public_ip)
+        cache.set('network_isp_info', isp_info, 300)
+    if wan_info is None:
+        wan_info = get_wan_interface_info()
+        cache.set('network_wan_info', wan_info, 300)
 
     isp_label = isp_info.get('isp') or isp_info.get('org') or 'ISP'
     isp_title_parts = []
