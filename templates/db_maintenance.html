@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Database Maintenance</h1>
+    <a href="/" class="btn-small">&larr; Back to Dashboard</a>
+</div>
+
+<div class="db-grid">
+    <div class="db-card">
+        <h2>VACUUM Database</h2>
+        <p>Clean up dead tuples and reclaim storage space in the <code>scan_scan</code> table.</p>
+        <form method="post" class="db-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="vacuum">
+            <button type="submit" class="btn-primary">Run VACUUM ANALYZE</button>
+        </form>
+    </div>
+
+    <div class="db-card">
+        <h2>Rebuild Index</h2>
+        <p>Rebuild all indexes on the <code>scan_scan</code> table to improve query performance.</p>
+        <form method="post" class="db-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reindex">
+            <button type="submit" class="btn-primary">Reindex Table</button>
+        </form>
+    </div>
+
+    <div class="db-card">
+        <h2>Check Slow Query</h2>
+        <p>Show currently running queries on the database that may be causing slowdowns.</p>
+        <form method="post" class="db-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="slow_query">
+            <button type="submit" class="btn-primary">Check Slow Queries</button>
+        </form>
+    </div>
+</div>
+
+{% if error %}
+<div class="alert-card alert-danger" style="margin-top:1rem;">
+    Error: {{ error }}
+</div>
+{% endif %}
+
+{% if result %}
+<div class="result-box" style="margin-top:1.25rem;">
+    {% if action == 'slow_query' %}
+    <h3>Slow Query Result</h3>
+    <div class="table-wrapper">
+        <table class="hacker-table">
+            <thead>
+                <tr>
+                    <th>Duration</th>
+                    <th>Query</th>
+                    <th>State</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in result.rows %}
+                <tr>
+                    <td>{{ row.0 }}</td>
+                    <td class="query-cell">{{ row.1 }}</td>
+                    <td>{{ row.2 }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3">No active slow queries found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <h3>Operation Result</h3>
+    <p class="result-text">{{ result }}</p>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

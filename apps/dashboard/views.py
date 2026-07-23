@@ -1,8 +1,10 @@
 import json
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.core.paginator import Paginator
+from django.conf import settings
+from django.db import connection
 from apps.scan.models import Scan
 
 @login_required
@@ -85,4 +87,46 @@ def network_map(request):
         'online_count': online,
         'gateway_ip': gateway_ip or '192.168.1.1',
         'scans': scans,
+    })
+
+@login_required
+def db_maintenance(request):
+    result = None
+    error = None
+    action = None
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            with connection.cursor() as cursor:
+                if action == 'vacuum':
+                    cursor.execute('VACUUM VERBOSE ANALYZE scan_scan;')
+                    result = 'VACUUM ANALYZE completed successfully on scan_scan.'
+                elif action == 'reindex':
+                    cursor.execute('REINDEX TABLE scan_scan;')
+                    result = 'Reindex completed successfully on scan_scan.'
+                elif action == 'slow_query':
+                    cursor.execute("""
+                        SELECT 
+                            now() - pg_stat_activity.query_start AS duration,
+                            query,
+                            state
+                        FROM pg_stat_activity
+                        WHERE state = 'active'
+                          AND query NOT ILIKE '%pg_stat_activity%'
+                        ORDER BY duration DESC
+                        LIMIT 20;
+                    """)
+                    rows = cursor.fetchall()
+                    result = {
+                        'headers': ['Duration', 'Query', 'State'],
+                        'rows': rows
+                    }
+                else:
+                    error = 'Invalid action.'
+        except Exception as e:
+            error = str(e)
+    return render(request, 'db_maintenance.html', {
+        'result': result,
+        'error': error,
+        'action': action,
     })

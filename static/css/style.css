@@ -346,6 +346,16 @@ body.no-nav .container > .auth-box {
 .hacker-table th a { color: var(--text-secondary); text-decoration: none; }
 .hacker-table th a:hover { color: var(--accent-green); text-decoration: none; }
 
+.db-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+.db-card { background: var(--bg-elevated); border: 1px solid var(--border-default); border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow-sm); }
+.db-card h2 { color: var(--text-primary); margin-bottom: 0.5rem; font-size: 1rem; font-weight: 700; }
+.db-card p { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem; }
+.db-form { display: flex; justify-content: flex-end; }
+.result-box { background: var(--bg-elevated); border: 1px solid var(--border-default); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow-sm); }
+.result-box h3 { color: var(--accent-green); margin-bottom: 0.75rem; font-size: 1rem; }
+.result-text { color: var(--text-secondary); font-size: 0.85rem; white-space: pre-wrap; font-family: var(--font-mono); }
+.query-cell { max-width: 400px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); font-size: 0.75rem; }
+
 @media (max-width: 1024px) {
     .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
     .charts-row { grid-template-columns: 1fr; }
