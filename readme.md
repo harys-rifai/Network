@@ -4,19 +4,27 @@
 Aplikasi berbasis **Django** untuk:
 - Login & autentikasi user.
 - Dashboard monitoring jaringan.
-- Network inventory hasil scan (IP, device, OS, brand, gateway, router, DNS).
+- Network inventory hasil scan (IP, device, OS, brand, gateway, router, DNS, MAC, latency, open ports).
 - Peta jaringan interaktif (network mapping).
 
 ## ⚙️ Fitur Utama
 - **Autentikasi & Role Management**
   - Login dengan `django.contrib.auth`.
-- **Network Scan**
-  - Scanner langsung berbasis socket + `ifconfig` tanpa perlu `nmap` atau `scapy`.
+- **Live Host Discovery**
+  - Ping sweep untuk menemukan semua host yang hidup di subnet.
+  - Deteksi TTL untuk inferensi OS sederhana.
   - Deteksi interface aktif, gateway, dan DNS server secara otomatis.
-  - Simpan hasil ke tabel `scan`.
+- **Port & Service Detection**
+  - Scan koneksi TCP pada port umum.
+  - Pemetaan port ke layanan (HTTP, SSH, SMB, RDP, dll).
+  - Pengukuran latency berbasis port terbuka.
+- **Device Classification**
+  - Inferensi device, OS, dan vendor dari hostname, MAC vendor, TTL, dan open ports.
+  - Mendeteksi perangkat tanpa open port (phone, tablet, IoT, PC, server).
 - **Inventory Management**
-  - Tabel `scan(id, ip, device, os, brand, gateway, router, dns, scanned_at)`.
+  - Tabel `scan(id, ip, device, os, brand, gateway, router, dns, mac_address, latency_ms, open_ports, services, scanned_at)`.
   - CRUD untuk data hasil scan.
+  - Identifikasi duplikat IP dan MAC.
 - **Dashboard Monitoring**
   - Ringkasan jumlah device, distribusi OS & brand.
   - Grafik interaktif dengan Chart.js.
@@ -69,15 +77,17 @@ project/
 │   └── css/
 │       └── style.css
 ├── manage.py
-└── push.sh
+├── push.sh
+└── readme.md
 ```
 
 ## 🚀 Workflow
 1. User login → masuk dashboard.
 2. Buka **New Scan** → pilih subnet / gunakan auto-detect interface aktif.
-3. Sistem melakukan live host discovery, live host dengan port terbentukkan disimpan.
-4. Dashboard menampilkan inventory & statistik.
-5. **Network Map** menampilkan topologi interaktif.
+3. Sistem melakukan ping sweep, live host discovery, dan port scan.
+4. Host tanpa open port tetap terdeteksi menggunakan fallback inference (hostname, MAC vendor, TTL).
+5. Dashboard menampilkan inventory & statistik.
+6. **Network Map** menampilkan topologi interaktif.
 
 ## 🔮 Fitur Tambahan
 - Alert & Notifikasi
@@ -119,6 +129,21 @@ DATABASES = {
 - Chart.js untuk statistik OS dan brand.
 - vis.js untuk network topology.
 
-## 🚀 Push ke GitHub
-bash push.sh  
+### Screenshots
+![Login](img/Screenshot%202026-07-24%20at%2002.26.35.png)
+![Dashboard](img/Screenshot%202026-07-24%20at%2002.29.13.png)
+![Scan List](img/Screenshot%202026-07-24%20at%2002.29.26.png)
+![Scan Detail](img/Screenshot%202026-07-24%20at%2002.29.33.png)
+![Scan Edit](img/Screenshot%202026-07-24%20at%2002.29.42.png)
+![Scan Delete Confirmation](img/Screenshot%202026-07-24%20at%2002.29.55.png)
+![Network Map](img/Screenshot%202026-07-24%20at%2002.31.14.png)
+![Scan Trigger](img/Screenshot%202026-07-24%20at%2002.31.41.png)
+![Scan Results Table](img/Screenshot%202026-07-24%20at%2003.25.50.png)
+![Phones Detected](img/Screenshot%202026-07-24%20at%2003.25.59.png)
+![PCs and Devices](img/Screenshot%202026-07-24%20at%2003.26.05.png)
+![Full Inventory](img/Screenshot%202026-07-24%20at%2003.26.12.png)
 
+## 🚀 Push ke GitHub
+```bash
+bash push.sh  
+```
