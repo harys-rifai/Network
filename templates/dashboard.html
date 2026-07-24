@@ -41,12 +41,21 @@
     </div>
 </div>
 
-    <div class="recent-section">
+<div class="recent-section">
     <h2>Recent Scans</h2>
     <table class="hacker-table">
-        <thead><tr><th>{% sort_url 'ip' %}</th><th>{% sort_url 'device' %}</th><th>{% sort_url 'os' %}</th><th>{% sort_url 'brand' %}</th><th>{% sort_url 'mac_address' 'MAC Address' %}</th><th>{% sort_url 'scanned_at' 'Scanned At' %}</th></tr></thead>
+        <thead>
+            <tr>
+                <th>{% sort_url 'ip' 'IP Address' %}</th>
+                <th>{% sort_url 'device' 'Device' %}</th>
+                <th>{% sort_url 'os' 'OS' %}</th>
+                <th>{% sort_url 'brand' 'Brand' %}</th>
+                <th>{% sort_url 'mac_address' 'MAC Address' %}</th>
+                <th>{% sort_url 'scanned_at' 'Scanned At' %}</th>
+            </tr>
+        </thead>
         <tbody>
-            {% for scan in recent_scans %}
+            {% for scan in page_obj %}
             <tr>
                 <td><a href="{% url 'scan_detail' scan.pk %}">{{ scan.ip }}</a></td>
                 <td>{{ scan.device }}</td>

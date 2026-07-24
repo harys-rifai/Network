@@ -37,15 +37,15 @@
             <table class="hacker-table">
                 <thead>
                     <tr>
-                            <th class="select-col"></th>
-                            <th>Table Name</th>
-                            <th>Vacuum Status</th>
-                            <th>Index Status</th>
-                            <th>Rebuild Status</th>
-                            <th>Records</th>
-                            <th>Size</th>
-                            <th>Last Maintenance</th>
-                        </tr>
+                        <th class="select-col"></th>
+                        <th>Table Name</th>
+                        <th>Vacuum Status</th>
+                        <th>Index Status</th>
+                        <th>Rebuild Status</th>
+                        <th>Records</th>
+                        <th>Size</th>
+                        <th>Last Maintenance</th>
+                    </tr>
                 </thead>
                 <tbody>
                     {% for row in tables %}
@@ -71,12 +71,33 @@
                         </td>
                         <td class="status-meta">{{ row.record_count }}</td>
                         <td class="status-meta">{{ row.table_size }}</td>
-                        <td class="status-meta">{{ row.last_maintenance|default:"-" }}</td>
+                        <td class="status-meta">{{ row.last_maintenance|date:"Y-m-d H:i"|default:"-" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="pagination" style="margin-top: 1rem;">
+            <span class="pagination-info">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                &nbsp;|&nbsp;
+                {{ page_obj.paginator.count }} table{{ page_obj.paginator.count|pluralize }}
+            </span>
+            <div class="pagination-actions">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1" class="btn-pagination">&laquo; First</a>
+                    <a href="?page={{ page_obj.previous_page_number }}" class="btn-pagination">&lsaquo; Prev</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="btn-pagination">Next &rsaquo;</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}" class="btn-pagination">Last &raquo;</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
         {% else %}
         <p class="note">No tables found or not PostgreSQL.</p>
         {% endif %}
@@ -105,7 +126,10 @@ function updateGlobalActions() {
 
 function submitGlobalAction(action) {
     const selected = Array.from(document.querySelectorAll('.table-checkbox:checked')).map(cb => cb.value);
-    if (selected.length === 0) return;
+    if (selected.length === 0) {
+        alert('Please select at least one table');
+        return;
+    }
     const form = document.getElementById('global-action-form');
     form.querySelectorAll('input[name="selected_tables"]').forEach(i => i.remove());
     document.getElementById('global-action-input').value = action;

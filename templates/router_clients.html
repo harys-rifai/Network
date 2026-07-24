@@ -35,7 +35,7 @@
                 </div>
                 <div class="router-item">
                     <span class="router-label">Latency</span>
-                    <span class="router-value">{{ router.latency_ms|default:"—" }} ms</span>
+                    <span class="router-value">{{ router.latency_ms|default:"—" }}{% if router.latency_ms %} ms{% endif %}</span>
                 </div>
                 <div class="router-item">
                     <span class="router-label">DNS</span>
@@ -43,16 +43,18 @@
                 </div>
                 <div class="router-item">
                     <span class="router-label">Scanned At</span>
-                    <span class="router-value">{{ router.scanned_at|date:"Y-m-d H:i" }}</span>
+                    <span class="router-value">{{ router.scanned_at|date:"Y-m-d H:i"|default:"—" }}</span>
                 </div>
                 {% if router.open_ports %}
                 <div class="router-item router-item--full">
                     <span class="router-label">Open Ports</span>
                     <span class="router-value">
                         {% for port in router.open_ports %}
+                        {% with service=router.services|get_item:port %}
                         <span class="client-port port-{{ port|port_risk|lower }}">
-                            {{ port }}{% if router.services|get_item:forloop.counter0 %}<span class="client-service">{{ router.services|get_item:forloop.counter0 }}</span>{% endif %}
+                            {{ port }}{% if service %}<span class="client-service">{{ service }}</span>{% endif %}
                         </span>
+                        {% endwith %}
                         {% endfor %}
                     </span>
                 </div>
@@ -116,8 +118,8 @@
 <div class="clients-section">
     <div class="summary-row">
         <h2>Client List</h2>
-        <div class="summary-pill"><strong>{{ total_clients }}</strong> devices</div>
-        {% if router %}
+        <div class="summary-pill"><strong>{{ total_clients }}</strong> device{{ total_clients|pluralize }}</div>
+        {% if router.ip != 'Unknown' %}
         <div class="summary-pill"><strong>{{ router.ip }}</strong> gateway</div>
         {% endif %}
     </div>
@@ -149,13 +151,15 @@
                     <td>{{ client.brand }}</td>
                     <td class="client-mono">{{ client.mac_address }}</td>
                     <td>{{ client.vendor }}</td>
-                    <td>{{ client.latency_ms }} ms</td>
+                    <td>{{ client.latency_ms }}{% if client.latency_ms != '—' %} ms{% endif %}</td>
                     <td>
                         {% if client.open_ports %}
                             {% for port in client.open_ports %}
+                            {% with service=client.services|get_item:port %}
                             <span class="client-port port-{{ port|port_risk|lower }}">
-                                {{ port }}{% with service=client.services|get_item:forloop.counter0 %}{% if service %}<span class="client-service">{{ service }}</span>{% endif %}{% endwith %}
+                                {{ port }}{% if service %}<span class="client-service">{{ service }}</span>{% endif %}
                             </span>
+                            {% endwith %}
                             {% endfor %}
                         {% else %}
                             <span style="color: var(--text-muted); font-size: 0.75rem;">—</span>
@@ -175,10 +179,10 @@
             </tbody>
         </table>
     </div>
-    {% if page_obj.has_other_pages %}
+    {% if page_obj.paginator.num_pages > 1 %}
     <div class="table-pagination">
         <span class="pagination-info">
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} &nbsp;|&nbsp; {{ page_obj.paginator.count }} devices
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} &nbsp;|&nbsp; {{ page_obj.paginator.count }} device{{ page_obj.paginator.count|pluralize }}
         </span>
         <div class="pagination-actions">
             {% if page_obj.has_previous %}

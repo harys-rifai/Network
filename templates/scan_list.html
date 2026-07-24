@@ -19,10 +19,10 @@
 <table class="hacker-table">
     <thead>
         <tr>
-            <th>{% sort_url 'ip' %}</th>
-            <th>{% sort_url 'device' %}</th>
-            <th>{% sort_url 'os' %}</th>
-            <th>{% sort_url 'brand' %}</th>
+            <th>{% sort_url 'ip' 'IP Address' %}</th>
+            <th>{% sort_url 'device' 'Device' %}</th>
+            <th>{% sort_url 'os' 'OS' %}</th>
+            <th>{% sort_url 'brand' 'Brand' %}</th>
             <th>{% sort_url 'mac_address' 'MAC' %}</th>
             <th>{% sort_url 'latency_ms' 'Latency' %}</th>
             <th>Open Ports</th>
@@ -50,14 +50,14 @@
                 <span class="dup-badge dup-mac">x{{ scan.mac_address|duplicate_count:mac_counts }}</span>
                 {% endif %}
             </td>
-            <td>{{ scan.latency_ms|default:"—" }} ms</td>
+            <td>{{ scan.latency_ms|default:"—" }}{% if scan.latency_ms %} ms{% endif %}</td>
             <td>
                 {% if scan.open_ports %}
                 <div class="port-list">
                     {% for port in scan.open_ports %}
-                    {% with service=scan.services|get_item:forloop.counter0 %}
+                    {% with service=scan.services|get_item:port %}
                     <span class="port-badge port-{{ port|port_risk|lower }}" title="Port {{ port }}{% if service %} - {{ service }}{% endif %}">
-                        {{ port }}{% if service %} {{ service }}{% endif %}
+                        {{ port }}{% if service %} <span style="opacity:0.7">{{ service }}</span>{% endif %}
                     </span>
                     {% endwith %}
                     {% endfor %}

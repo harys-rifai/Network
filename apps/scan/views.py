@@ -8,46 +8,71 @@ import ipaddress
 import time
 from datetime import datetime
 from .models import Scan, ScanPort, ScanMacHistory, IspInfo
-from .scanner import scan_network, get_active_interface, get_public_ip, get_isp_info, PORT_SERVICES
+from .scanner import scan_network, get_active_interface, get_public_ip, get_isp_info, get_port_services
+
+ALLOWED_SORT_FIELDS = {'ip', 'device', 'os', 'brand', 'mac_address', 'latency_ms', 'scanned_at'}
+ITEMS_PER_PAGE = 25
+
+
+def _resolve_sort(sort_param, order_param, default='-scanned_at'):
+    """Return a safe order_by string from raw query params."""
+    sort = sort_param or 'scanned_at'
+    order = order_param if order_param in ('asc', 'desc') else 'desc'
+    if sort not in ALLOWED_SORT_FIELDS:
+        return default, 'scanned_at', 'desc'
+    db_sort = sort if order == 'asc' else f'-{sort}'
+    return db_sort, sort, order
+
 
 @login_required
 def scan_list(request):
-    sort = request.GET.get('sort', '-scanned_at')
-    order = request.GET.get('order', 'desc')
-    allowed = {'ip', 'device', 'os', 'brand', 'mac_address', 'latency_ms', 'scanned_at'}
-    if sort not in allowed:
-        sort = '-scanned_at'
-    if order not in {'asc', 'desc'}:
-        order = 'desc'
-    if order == 'asc' and sort.startswith('-'):
-        sort = sort[1:]
-    elif order == 'desc' and not sort.startswith('-'):
-        sort = f'-{sort}'
+    db_sort, current_sort, current_order = _resolve_sort(
+        request.GET.get('sort', 'scanned_at'),
+        request.GET.get('order', 'desc'),
+    )
 
-    queryset = Scan.objects.all().order_by(sort)
-    unique_ip_count = queryset.values('ip').count()
-    unique_mac_count = queryset.exclude(mac_address__isnull=True).exclude(mac_address='').values('mac_address').count()
-    duplicate_ips = queryset.values('ip').annotate(cnt=Count('id')).filter(cnt__gt=1).count()
-    duplicate_macs = queryset.exclude(mac_address__isnull=True).exclude(mac_address='').values('mac_address').annotate(cnt=Count('id')).filter(cnt__gt=1).count()
+    queryset = Scan.objects.all().order_by(db_sort)
 
-    page_number = request.GET.get('page', 1)
-    paginator = Paginator(queryset, 10)
-    page_obj = paginator.get_page(page_number)
+    # Duplicate detection over the full queryset
+    dup_ips = (
+        queryset.values('ip')
+        .annotate(cnt=Count('id'))
+        .filter(cnt__gt=1)
+        .count()
+    )
+    dup_macs = (
+        queryset.exclude(mac_address__isnull=True).exclude(mac_address='')
+        .values('mac_address')
+        .annotate(cnt=Count('id'))
+        .filter(cnt__gt=1)
+        .count()
+    )
+    unique_ip_count = queryset.values('ip').distinct().count()
+    unique_mac_count = (
+        queryset.exclude(mac_address__isnull=True).exclude(mac_address='')
+        .values('mac_address').distinct().count()
+    )
+
+    paginator = Paginator(queryset, ITEMS_PER_PAGE)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
     return render(request, 'scan_list.html', {
         'page_obj': page_obj,
         'filtered_queryset': queryset,
-        'current_sort': sort if not sort.startswith('-') else sort[1:],
-        'current_order': order,
-        'duplicate_ips': duplicate_ips,
-        'duplicate_macs': duplicate_macs,
+        'current_sort': current_sort,
+        'current_order': current_order,
+        'duplicate_ips': dup_ips,
+        'duplicate_macs': dup_macs,
         'unique_ip_count': unique_ip_count,
         'unique_mac_count': unique_mac_count,
     })
+
 
 @login_required
 def scan_detail(request, pk):
     scan = get_object_or_404(Scan, pk=pk)
     return render(request, 'scan_detail.html', {'scan': scan})
+
 
 @login_required
 def scan_edit(request, pk):
@@ -65,6 +90,7 @@ def scan_edit(request, pk):
         return redirect('scan_list')
     return render(request, 'scan_form.html', {'scan': scan})
 
+
 @login_required
 def scan_delete(request, pk):
     scan = get_object_or_404(Scan, pk=pk)
@@ -73,6 +99,7 @@ def scan_delete(request, pk):
         messages.success(request, 'Scan record deleted.')
         return redirect('scan_list')
     return render(request, 'scan_confirm_delete.html', {'scan': scan})
+
 
 @login_required
 def scan_trigger(request):
@@ -83,8 +110,6 @@ def scan_trigger(request):
             current_subnet = str(ipaddress.IPv4Network(f'{ip_addr}/{netmask}', strict=False))
         except Exception:
             current_subnet = None
-
-    last_scanned_subnet = cache.get('last_scanned_subnet')
 
     if request.method == 'POST':
         subnet = request.POST.get('subnet') or current_subnet
@@ -109,10 +134,12 @@ def scan_trigger(request):
         except Exception as e:
             messages.error(request, f'Scan failed: {str(e)}')
             return redirect('scan_trigger')
+
         added = 0
         updated = 0
         public_ip = get_public_ip()
         isp_info = isp_info or {}
+
         if public_ip:
             db_isp, _ = IspInfo.objects.get_or_create(ip=public_ip, defaults=isp_info)
             if not db_isp.isp and isp_info.get('isp'):
@@ -131,8 +158,13 @@ def scan_trigger(request):
                 'region': db_isp.region or isp_info.get('region'),
                 'city': db_isp.city or isp_info.get('city'),
             }
+
         for r in results:
-            services_dict = dict(zip(r.get('open_ports', []), r.get('services', []))) if r.get('open_ports') else None
+            # services is stored as {port: service_name} dict
+            services_dict = {}
+            for port, svc in zip(r.get('open_ports', []), r.get('services', [])):
+                services_dict[str(port)] = svc
+
             obj, created = Scan.objects.update_or_create(
                 ip=r['ip'],
                 defaults={
@@ -159,10 +191,11 @@ def scan_trigger(request):
 
             port_entries = []
             seen_ports = set()
+            port_services = get_port_services()
             for p in r.get('open_ports', []):
                 if p not in seen_ports:
                     seen_ports.add(p)
-                    svc = PORT_SERVICES.get(p)
+                    svc = port_services.get(p)
                     port_entries.append(ScanPort(scan=obj, port=p, service=svc))
             if port_entries:
                 ScanPort.objects.bulk_create(port_entries, ignore_conflicts=True)
@@ -176,13 +209,14 @@ def scan_trigger(request):
                 if history.last_seen < obj.scanned_at:
                     history.last_seen = obj.scanned_at
                     history.save(update_fields=['last_seen'])
+
         if current_subnet:
             cache.set('last_scanned_subnet', current_subnet, timeout=None)
-        cache.delete('network_public_ip')
-        cache.delete('network_isp_info')
-        cache.delete('network_wan_info')
-        msg = f'Scan completed. {added} new, {updated} updated.'
-        messages.success(request, msg)
+
+        messages.success(request, f'Scan complete: {added} added, {updated} updated.')
         return redirect('scan_list')
 
-    return render(request, 'scan_trigger.html', {'subnet': current_subnet})
+    return render(request, 'scan_trigger.html', {
+        'subnet': current_subnet,
+        'iface': iface_name,
+    })

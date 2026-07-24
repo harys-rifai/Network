@@ -8,67 +8,85 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
-    from django.core.cache import cache
+    from django.core.cache import cache as django_cache
     from apps.scan.models import OuiVendor, PortService, IspInfo
     HAS_DB = True
 except Exception:
     HAS_DB = False
-    cache = None
+    django_cache = None
     OuiVendor = None
     PortService = None
     IspInfo = None
 
 CACHE_TIMEOUT = 600
 
+# Default service mappings
+_DEFAULT_PORT_SERVICES = {
+    21: 'FTP', 22: 'SSH', 23: 'Telnet', 25: 'SMTP', 53: 'DNS',
+    80: 'HTTP', 110: 'POP3', 139: 'NetBIOS', 143: 'IMAP', 443: 'HTTPS',
+    445: 'SMB', 993: 'IMAPS', 995: 'POP3S', 3389: 'RDP', 5353: 'mDNS',
+    5900: 'VNC', 631: 'IPP', 5000: 'UPnP', 7000: 'AirPlay', 548: 'AFP',
+    3306: 'MySQL', 5432: 'PostgreSQL', 27017: 'MongoDB', 6379: 'Redis',
+    11211: 'Memcached', 1433: 'MSSQL', 1521: 'Oracle', 2375: 'Docker',
+    3000: 'Node/HTTP', 9200: 'Elasticsearch', 5601: 'Kibana',
+}
+
 
 def _load_port_services():
-    if not HAS_DB:
-        return {
-            21: 'FTP', 22: 'SSH', 23: 'Telnet', 25: 'SMTP', 53: 'DNS',
-            80: 'HTTP', 110: 'POP3', 139: 'NetBIOS', 143: 'IMAP', 443: 'HTTPS',
-            445: 'SMB', 993: 'IMAPS', 995: 'POP3S', 3389: 'RDP', 5353: 'mDNS',
-            5900: 'VNC', 631: 'IPP', 5000: 'UPnP', 7000: 'AirPlay', 548: 'AFP',
-            3306: 'MySQL', 5432: 'PostgreSQL', 27017: 'MongoDB', 6379: 'Redis',
-            11211: 'Memcached', 1433: 'MSSQL', 1521: 'Oracle', 2375: 'Docker',
-            3000: 'Node/HTTP', 9200: 'Elasticsearch', 5601: 'Kibana',
-        }
+    """Load port services from DB with caching, fallback to defaults."""
+    if not HAS_DB or django_cache is None:
+        return _DEFAULT_PORT_SERVICES.copy()
+    
     key = 'scanner_port_services'
-    data = cache.get(key)
+    data = django_cache.get(key)
     if data is None:
-        data = {p.port: p.service for p in PortService.objects.all()}
-        cache.set(key, data, CACHE_TIMEOUT)
+        try:
+            data = {p.port: p.service for p in PortService.objects.all()}
+            if not data:
+                data = _DEFAULT_PORT_SERVICES.copy()
+            django_cache.set(key, data, CACHE_TIMEOUT)
+        except Exception:
+            data = _DEFAULT_PORT_SERVICES.copy()
     return data
 
 
 def _load_oui_vendors():
-    if not HAS_DB:
+    """Load OUI vendors from DB with caching."""
+    if not HAS_DB or django_cache is None:
         return {}
+    
     key = 'scanner_oui_vendors'
-    data = cache.get(key)
+    data = django_cache.get(key)
     if data is None:
-        data = {o.prefix.upper(): o.vendor for o in OuiVendor.objects.all()}
-        cache.set(key, data, CACHE_TIMEOUT)
+        try:
+            data = {o.prefix.upper(): o.vendor for o in OuiVendor.objects.all()}
+            django_cache.set(key, data, CACHE_TIMEOUT)
+        except Exception:
+            data = {}
     return data
 
 
 def get_port_services():
+    """Fetch port services (always fresh from cache/DB)."""
     return _load_port_services()
 
 
 def mac_to_vendor(mac):
+    """Resolve MAC address prefix to vendor name."""
     if not mac:
         return 'Unknown'
-    mac = mac.strip().upper().replace(':','').replace('-','')
+    mac = mac.strip().upper().replace(':', '').replace('-', '')
     prefix = mac[:6]
     vendors = _load_oui_vendors()
     return vendors.get(prefix, 'Unknown')
 
 
-PORT_SERVICES = _load_port_services()
+# Module-level PORT_SERVICES dict — uses defaults at import time (before DB is ready).
+# Always call get_port_services() in code that runs after Django setup to get DB-backed values.
+PORT_SERVICES = _DEFAULT_PORT_SERVICES.copy()
 
-
-# OUI_VENDORS kept as alias for backward compatibility
-OUI_VENDORS = _load_oui_vendors()
+# OUI_VENDORS: empty at import time; populated on first mac_to_vendor() call via _load_oui_vendors().
+OUI_VENDORS = {}
 
 
 def get_active_interface():
@@ -248,9 +266,10 @@ def _get_dns_servers_windows():
 
 
 def build_arp_cache():
+    """Build IP→MAC mapping from ARP table (variable name changed to avoid shadowing django_cache)."""
     try:
         out = subprocess.check_output(['arp', '-a'], text=True)
-        cache = {}
+        arp_map = {}
         for line in out.splitlines():
             line = line.strip()
             parts = line.split()
@@ -269,17 +288,18 @@ def build_arp_cache():
                         mac = p.lower()
                         break
                 if ip and mac:
-                    cache[ip] = mac
-        return cache
+                    arp_map[ip] = mac
+        return arp_map
     except Exception:
         return {}
 
 
 def get_mac_from_arp(ip, arp_cache=None):
+    """Get MAC address from ARP cache (parameter renamed to arp_cache to avoid confusion)."""
     if arp_cache is not None:
         return arp_cache.get(str(ip))
-    cache = build_arp_cache()
-    return cache.get(str(ip))
+    arp_map = build_arp_cache()
+    return arp_map.get(str(ip))
 
 
 def measure_latency(ip, ports):
@@ -602,11 +622,12 @@ def scan_network(subnet=None, max_hosts=254, max_workers=60):
             raise
 
     results = []
+    port_services = _load_port_services()   # fresh dict, avoids stale module-level reference
     for ip_str, res in results_map.items():
         hostname = res['hostname']
         mac = res['mac_address']
         ports_open = sorted(res['open_ports'])
-        services = [PORT_SERVICES.get(p) for p in ports_open if p in PORT_SERVICES]
+        services = [port_services.get(p, '') for p in ports_open]
         latency_ms = measure_latency(ip_str, ports_open) if ports_open else None
         ttl = alive_with_ttl.get(ip_str)
         brand = guess_brand(hostname, mac, services)
@@ -629,22 +650,18 @@ def scan_network(subnet=None, max_hosts=254, max_workers=60):
             'mac_address': mac,
             'latency_ms': latency_ms,
             'open_ports': ports_open,
-            'services': services,
+            'services': services,   # list parallel to open_ports; view converts to dict
             'server_info': detect_server_info(hostname, ports_open, services),
         })
 
     public_ip = get_public_ip()
     isp_info = get_isp_info(public_ip)
-    for r in results:
-        r['public_ip'] = public_ip
-        r['isp_name'] = isp_info.get('isp')
-        r['isp_org'] = isp_info.get('org')
     return results, isp_info
 
 
 def get_public_ip():
-    if HAS_DB:
-        cached = cache.get('scanner_public_ip')
+    if HAS_DB and django_cache is not None:
+        cached = django_cache.get('scanner_public_ip')
         if cached:
             return cached
     try:
@@ -655,8 +672,8 @@ def get_public_ip():
         with urllib.request.urlopen(req, timeout=5) as resp:
             ip = resp.read().decode().strip()
         if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', ip):
-            if HAS_DB:
-                cache.set('scanner_public_ip', ip, 300)
+            if HAS_DB and django_cache is not None:
+                django_cache.set('scanner_public_ip', ip, 300)
             return ip
     except Exception:
         pass
@@ -667,9 +684,9 @@ def get_isp_info(public_ip=None):
     ip = public_ip or get_public_ip()
     if not ip:
         return {}
-    if HAS_DB:
-        cache_key = f'scanner_isp_info:{ip}'
-        cached = cache.get(cache_key)
+    cache_key = f'scanner_isp_info:{ip}'
+    if HAS_DB and django_cache is not None:
+        cached = django_cache.get(cache_key)
         if cached:
             return cached
     try:
@@ -688,8 +705,8 @@ def get_isp_info(public_ip=None):
                 'region': data.get('regionName'),
                 'city': data.get('city'),
             }
-            if HAS_DB:
-                cache.set(cache_key, result, 300)
+            if HAS_DB and django_cache is not None:
+                django_cache.set(cache_key, result, 300)
                 _save_isp_info(ip, result)
             return result
     except Exception:
@@ -709,8 +726,8 @@ def get_isp_info(public_ip=None):
             'region': data.get('regionName'),
             'city': data.get('cityName'),
         }
-        if HAS_DB:
-            cache.set(cache_key, result, 300)
+        if HAS_DB and django_cache is not None:
+            django_cache.set(cache_key, result, 300)
             _save_isp_info(ip, result)
         return result
     except Exception:

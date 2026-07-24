@@ -5,17 +5,26 @@
     <h1 class="matrix-title">Trigger Network Scan</h1>
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            <div class="alert-card alert-{{ message.tags }}" style="margin-bottom: 1rem;">{{ message }}</div>
         {% endfor %}
     {% endif %}
     <form method="post" class="hacker-form" id="scanForm">
         {% csrf_token %}
-        <div class="form-group"><label>Subnet</label><input type="text" name="subnet" value="{{ subnet|default:'10.0.0.0/24' }}" required></div>
-        <div class="form-group"><label>Max Hosts</label><input type="number" name="count" value="254" min="1" max="4094" required></div>
+        <div class="form-group">
+            <label>Subnet</label>
+            <input type="text" name="subnet" value="{{ subnet|default:'10.0.0.0/24' }}" required>
+            {% if subnet %}
+            <p class="note" style="margin-top: 0.5rem; margin-bottom: 0;">Auto-detected: <strong>{{ subnet }}</strong>{% if iface %} from interface <strong>{{ iface }}</strong>{% endif %}</p>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            <label>Max Hosts</label>
+            <input type="number" name="count" value="254" min="1" max="4094" required>
+        </div>
         <button type="submit" class="btn-primary" id="scanButton">Run Scan</button>
         <a href="{% url 'scan_list' %}" class="btn-small">Cancel</a>
     </form>
-    <p class="note">Real network scan using live host discovery. Auto-detected from your active interface subnet.</p>
+    <p class="note">Real network scan using live host discovery. Subnet is auto-detected from your active network interface.</p>
 </div>
 
 <div id="scanLoader" style="display:none;">
