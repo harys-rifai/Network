@@ -85,10 +85,6 @@ def scan_trigger(request):
             current_subnet = None
 
     last_scanned_subnet = cache.get('last_scanned_subnet')
-    network_changed = current_subnet and current_subnet != last_scanned_subnet
-    last_auto_scan = cache.get('last_auto_scan_timestamp')
-    auto_scan_cooldown = 1800
-    can_auto_scan = network_changed and (last_auto_scan is None or (time.time() - float(last_auto_scan)) > auto_scan_cooldown)
 
     if request.method == 'POST':
         subnet = request.POST.get('subnet') or current_subnet
@@ -186,103 +182,6 @@ def scan_trigger(request):
         cache.delete('network_isp_info')
         cache.delete('network_wan_info')
         msg = f'Scan completed. {added} new, {updated} updated.'
-        messages.success(request, msg)
-        return redirect('scan_list')
-
-    if can_auto_scan and current_subnet:
-        cache.set('last_scanned_subnet', current_subnet, timeout=None)
-        cache.set('last_auto_scan_timestamp', str(time.time()), timeout=None)
-        try:
-            scan_result = scan_network(subnet=current_subnet, max_hosts=254, max_workers=50)
-            results = scan_result[0] if isinstance(scan_result, tuple) else scan_result
-            isp_info = scan_result[1] if isinstance(scan_result, tuple) else {}
-        except RuntimeError as e:
-            if 'cannot schedule new futures after interpreter shutdown' in str(e):
-                messages.warning(request, 'Thread pool unavailable, auto-scan retrying sequentially...')
-                try:
-                    scan_result = scan_network(subnet=current_subnet, max_hosts=254, max_workers=1)
-                    results = scan_result[0] if isinstance(scan_result, tuple) else scan_result
-                    isp_info = scan_result[1] if isinstance(scan_result, tuple) else {}
-                except Exception as e2:
-                    messages.error(request, f'Auto-scan failed: {str(e2)}')
-                    return render(request, 'scan_trigger.html', {'subnet': current_subnet, 'network_changed': True, 'auto_scan_error': str(e2)})
-            else:
-                messages.error(request, f'Auto-scan failed: {str(e)}')
-                return render(request, 'scan_trigger.html', {'subnet': current_subnet, 'network_changed': True, 'auto_scan_error': str(e)})
-        except Exception as e:
-            messages.error(request, f'Auto-scan failed: {str(e)}')
-            return render(request, 'scan_trigger.html', {'subnet': current_subnet, 'network_changed': True, 'auto_scan_error': str(e)})
-        added = 0
-        updated = 0
-        public_ip = get_public_ip()
-        isp_info = isp_info or {}
-        if public_ip:
-            db_isp, _ = IspInfo.objects.get_or_create(ip=public_ip, defaults=isp_info)
-            if not db_isp.isp and isp_info.get('isp'):
-                db_isp.isp = isp_info.get('isp')
-                db_isp.org = isp_info.get('org')
-                db_isp.as_number = isp_info.get('as')
-                db_isp.country = isp_info.get('country')
-                db_isp.region = isp_info.get('region')
-                db_isp.city = isp_info.get('city')
-                db_isp.save(update_fields=['isp', 'org', 'as_number', 'country', 'region', 'city'])
-            isp_info = {
-                'isp': db_isp.isp or isp_info.get('isp'),
-                'org': db_isp.org or isp_info.get('org'),
-                'as': db_isp.as_number or isp_info.get('as'),
-                'country': db_isp.country or isp_info.get('country'),
-                'region': db_isp.region or isp_info.get('region'),
-                'city': db_isp.city or isp_info.get('city'),
-            }
-        for r in results:
-            services_dict = dict(zip(r.get('open_ports', []), r.get('services', []))) if r.get('open_ports') else None
-            obj, created = Scan.objects.update_or_create(
-                ip=r['ip'],
-                defaults={
-                    'device': r['device'],
-                    'os': r['os'],
-                    'brand': r['brand'],
-                    'gateway': r['gateway'],
-                    'router': r['router'],
-                    'dns': r['dns'],
-                    'mac_address': r.get('mac_address'),
-                    'latency_ms': r.get('latency_ms'),
-                    'open_ports': r.get('open_ports'),
-                    'services': services_dict,
-                    'public_ip': public_ip,
-                    'isp_name': isp_info.get('isp'),
-                    'isp_org': isp_info.get('org'),
-                    'server_info': r.get('server_info'),
-                }
-            )
-            if created:
-                added += 1
-            else:
-                updated += 1
-
-            port_entries = []
-            seen_ports = set()
-            for p in r.get('open_ports', []):
-                if p not in seen_ports:
-                    seen_ports.add(p)
-                    svc = PORT_SERVICES.get(p)
-                    port_entries.append(ScanPort(scan=obj, port=p, service=svc))
-            if port_entries:
-                ScanPort.objects.bulk_create(port_entries, ignore_conflicts=True)
-
-            mac = r.get('mac_address')
-            if mac:
-                history, _ = ScanMacHistory.objects.get_or_create(
-                    ip=r['ip'],
-                    mac_address=mac,
-                )
-                if history.last_seen < obj.scanned_at:
-                    history.last_seen = obj.scanned_at
-                    history.save(update_fields=['last_seen'])
-        cache.delete('network_public_ip')
-        cache.delete('network_isp_info')
-        cache.delete('network_wan_info')
-        msg = f'Network changed! Auto-scanned {current_subnet}. {added} new, {updated} updated.'
         messages.success(request, msg)
         return redirect('scan_list')
 

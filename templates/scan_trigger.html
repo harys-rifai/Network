@@ -15,7 +15,7 @@
         <button type="submit" class="btn-primary" id="scanButton">Run Scan</button>
         <a href="{% url 'scan_list' %}" class="btn-small">Cancel</a>
     </form>
-    <p class="note">Real network scan using live host discovery. Defaults to your active interface subnet. Network changes trigger auto-scan.</p>
+    <p class="note">Real network scan using live host discovery. Auto-detected from your active interface subnet.</p>
 </div>
 
 <div id="scanLoader" style="display:none;">
