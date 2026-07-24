@@ -21,10 +21,11 @@ Aplikasi berbasis **Django** untuk:
 - **Device Classification**
   - Inferensi device, OS, dan vendor dari hostname, MAC vendor, TTL, dan open ports.
   - Mendeteksi perangkat tanpa open port (phone, tablet, IoT, PC, server).
-- **Inventory Management**
-  - Tabel `scan(id, ip, device, os, brand, gateway, router, dns, mac_address, latency_ms, open_ports, services, scanned_at)`.
-  - CRUD untuk data hasil scan.
-  - Identifikasi duplikat IP dan MAC.
+ - **Inventory Management**
+   - Tabel `scan(id, ip, device, os, brand, gateway, router, dns, mac_address, latency_ms, open_ports, services, scanned_at)`.
+   - Tabel `isp_info(id, ip, isp, org, as_number, country, region, city, updated_at)` untuk menyimpan data ISP.
+   - CRUD untuk data hasil scan.
+   - Identifikasi duplikat IP dan MAC.
 - **Dashboard Monitoring**
   - Ringkasan jumlah device, distribusi OS & brand.
   - Grafik interaktif dengan Chart.js.
@@ -45,7 +46,7 @@ python3 manage.py createsuperuser
 python3 manage.py runserver
 ```
 
-Buka `http://127.0.0.1:8000/accounts/login/` dan login dengan akun superuser.
+Buka `http://127.0.0.1:808/accounts/login/` dan login dengan akun superuser.
 
 ## 📁 Struktur Project
 ```
@@ -118,7 +119,7 @@ DATABASES = {
         'USER': 'postgres',
         'PASSWORD': 'Password09!',
         'HOST': 'localhost',
-        'PORT': '5432',
+        'PORT': '5008',
     }
 }
 ```

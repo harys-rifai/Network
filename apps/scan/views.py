@@ -5,8 +5,8 @@ from django.db.models import Count
 from django.core.paginator import Paginator
 from django.core.cache import cache
 import ipaddress
-from .models import Scan
-from .scanner import scan_network, get_active_interface, get_public_ip, get_isp_info
+from .models import Scan, ScanPort, ScanMacHistory, IspInfo
+from .scanner import scan_network, get_active_interface, get_public_ip, get_isp_info, PORT_SERVICES
 
 @login_required
 def scan_list(request):
@@ -98,6 +98,25 @@ def scan_trigger(request):
         added = 0
         updated = 0
         public_ip = get_public_ip()
+        isp_info = isp_info or {}
+        if public_ip:
+            db_isp, _ = IspInfo.objects.get_or_create(ip=public_ip, defaults=isp_info)
+            if not db_isp.isp and isp_info.get('isp'):
+                db_isp.isp = isp_info.get('isp')
+                db_isp.org = isp_info.get('org')
+                db_isp.as_number = isp_info.get('as')
+                db_isp.country = isp_info.get('country')
+                db_isp.region = isp_info.get('region')
+                db_isp.city = isp_info.get('city')
+                db_isp.save(update_fields=['isp', 'org', 'as_number', 'country', 'region', 'city'])
+            isp_info = {
+                'isp': db_isp.isp or isp_info.get('isp'),
+                'org': db_isp.org or isp_info.get('org'),
+                'as': db_isp.as_number or isp_info.get('as'),
+                'country': db_isp.country or isp_info.get('country'),
+                'region': db_isp.region or isp_info.get('region'),
+                'city': db_isp.city or isp_info.get('city'),
+            }
         for r in results:
             services_dict = dict(zip(r.get('open_ports', []), r.get('services', []))) if r.get('open_ports') else None
             obj, created = Scan.objects.update_or_create(
@@ -123,6 +142,26 @@ def scan_trigger(request):
                 added += 1
             else:
                 updated += 1
+
+            port_entries = []
+            seen_ports = set()
+            for p in r.get('open_ports', []):
+                if p not in seen_ports:
+                    seen_ports.add(p)
+                    svc = PORT_SERVICES.get(p)
+                    port_entries.append(ScanPort(scan=obj, port=p, service=svc))
+            if port_entries:
+                ScanPort.objects.bulk_create(port_entries, ignore_conflicts=True)
+
+            mac = r.get('mac_address')
+            if mac:
+                history, _ = ScanMacHistory.objects.get_or_create(
+                    ip=r['ip'],
+                    mac_address=mac,
+                )
+                if history.last_seen < obj.scanned_at:
+                    history.last_seen = obj.scanned_at
+                    history.save(update_fields=['last_seen'])
         if current_subnet:
             cache.set('last_scanned_subnet', current_subnet, timeout=None)
         cache.delete('network_public_ip')
@@ -144,6 +183,25 @@ def scan_trigger(request):
         added = 0
         updated = 0
         public_ip = get_public_ip()
+        isp_info = isp_info or {}
+        if public_ip:
+            db_isp, _ = IspInfo.objects.get_or_create(ip=public_ip, defaults=isp_info)
+            if not db_isp.isp and isp_info.get('isp'):
+                db_isp.isp = isp_info.get('isp')
+                db_isp.org = isp_info.get('org')
+                db_isp.as_number = isp_info.get('as')
+                db_isp.country = isp_info.get('country')
+                db_isp.region = isp_info.get('region')
+                db_isp.city = isp_info.get('city')
+                db_isp.save(update_fields=['isp', 'org', 'as_number', 'country', 'region', 'city'])
+            isp_info = {
+                'isp': db_isp.isp or isp_info.get('isp'),
+                'org': db_isp.org or isp_info.get('org'),
+                'as': db_isp.as_number or isp_info.get('as'),
+                'country': db_isp.country or isp_info.get('country'),
+                'region': db_isp.region or isp_info.get('region'),
+                'city': db_isp.city or isp_info.get('city'),
+            }
         for r in results:
             services_dict = dict(zip(r.get('open_ports', []), r.get('services', []))) if r.get('open_ports') else None
             obj, created = Scan.objects.update_or_create(
@@ -169,6 +227,26 @@ def scan_trigger(request):
                 added += 1
             else:
                 updated += 1
+
+            port_entries = []
+            seen_ports = set()
+            for p in r.get('open_ports', []):
+                if p not in seen_ports:
+                    seen_ports.add(p)
+                    svc = PORT_SERVICES.get(p)
+                    port_entries.append(ScanPort(scan=obj, port=p, service=svc))
+            if port_entries:
+                ScanPort.objects.bulk_create(port_entries, ignore_conflicts=True)
+
+            mac = r.get('mac_address')
+            if mac:
+                history, _ = ScanMacHistory.objects.get_or_create(
+                    ip=r['ip'],
+                    mac_address=mac,
+                )
+                if history.last_seen < obj.scanned_at:
+                    history.last_seen = obj.scanned_at
+                    history.save(update_fields=['last_seen'])
         cache.delete('network_public_ip')
         cache.delete('network_isp_info')
         cache.delete('network_wan_info')

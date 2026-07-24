@@ -20,7 +20,7 @@ def dashboard(request):
 
     sort = request.GET.get('sort', '-scanned_at')
     order = request.GET.get('order', 'desc')
-    allowed = {'ip', 'device', 'os', 'brand', 'scanned_at'}
+    allowed = {'ip', 'device', 'os', 'brand', 'mac_address', 'scanned_at'}
     if sort not in allowed:
         sort = '-scanned_at'
     if order not in {'asc', 'desc'}:

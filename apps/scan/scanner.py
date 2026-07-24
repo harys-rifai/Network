@@ -4,277 +4,86 @@ import re
 import socket
 import subprocess
 import time
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-PORT_SERVICES = {
-    21: 'FTP', 22: 'SSH', 23: 'Telnet', 25: 'SMTP', 53: 'DNS',
-    80: 'HTTP', 110: 'POP3', 139: 'NetBIOS', 143: 'IMAP', 443: 'HTTPS',
-    445: 'SMB', 993: 'IMAPS', 995: 'POP3S', 3389: 'RDP', 5353: 'mDNS',
-    5900: 'VNC', 631: 'IPP', 5000: 'UPnP', 7000: 'AirPlay', 548: 'AFP',
-    3306: 'MySQL', 5432: 'PostgreSQL', 27017: 'MongoDB', 6379: 'Redis',
-    11211: 'Memcached', 1433: 'MSSQL', 1521: 'Oracle', 2375: 'Docker',
-    3000: 'Node/HTTP', 9200: 'Elasticsearch', 5601: 'Kibana',
-}
+try:
+    from django.core.cache import cache
+    from apps.scan.models import OuiVendor, PortService, IspInfo
+    HAS_DB = True
+except Exception:
+    HAS_DB = False
+    cache = None
+    OuiVendor = None
+    PortService = None
+    IspInfo = None
 
-OUI_VENDORS = {
-    '001122': 'Cisco',
-    '00199D': 'Cisco',
-    '0021A1': 'Cisco',
-    '001A79': 'Cisco',
-    '001EBD': 'Cisco',
-    '002155': 'Cisco',
-    '00259C': 'Cisco',
-    '00265A': 'Dell',
-    '0026B9': 'Dell',
-    '001422': 'Dell',
-    '001CC4': 'Dell',
-    '00219B': 'Dell',
-    '002219': 'HP',
-    '00237D': 'HP',
-    '002655': 'HP',
-    '000E7F': 'HP',
-    '001F29': 'HP',
-    '00215A': 'HP',
-    '002312': 'Apple',
-    '002332': 'Apple',
-    '002361': 'Apple',
-    '0023DF': 'Apple',
-    '002436': 'Apple',
-    '00254B': 'Apple',
-    '0025BC': 'Apple',
-    '00264A': 'Apple',
-    '0026B0': 'Apple',
-    '0026BB': 'Apple',
-    '003065': 'Apple',
-    '0050E4': 'Apple',
-    '040CCE': 'Apple',
-    '041552': 'Apple',
-    '041E64': 'Apple',
-    '042665': 'Apple',
-    '045453': 'Apple',
-    '04DB56': 'Apple',
-    '080007': 'Apple',
-    '101C0C': 'Apple',
-    '183DA2': 'Apple',
-    '20C9D0': 'Apple',
-    '28CFDA': 'Apple',
-    '2CBE08': 'Apple',
-    '3010B3': 'Apple',
-    '3035AD': 'Apple',
-    '380F4A': 'Apple',
-    '3C0754': 'Apple',
-    '403005': 'Apple',
-    '406C8F': 'Apple',
-    '442A60': 'Apple',
-    '4860BC': 'Apple',
-    '48746E': 'Apple',
-    '542696': 'Apple',
-    '544E90': 'Apple',
-    '581CF8': 'Apple',
-    '587F57': 'Apple',
-    '58B035': 'Apple',
-    '5C8D4E': 'Apple',
-    '600308': 'Apple',
-    '60C547': 'Apple',
-    '64200C': 'Apple',
-    '685B35': 'Apple',
-    '6C4008': 'Apple',
-    '6C72E7': 'Apple',
-    '701124': 'Apple',
-    '7014A6': 'Apple',
-    '703E97': 'Apple',
-    '741BB2': 'Apple',
-    '784F43': 'Apple',
-    '786A89': 'Apple',
-    '7C11BE': 'Apple',
-    '7C6D62': 'Apple',
-    '80BE05': 'Apple',
-    '843835': 'Apple',
-    '8478AC': 'Apple',
-    '88532E': 'Apple',
-    '88AE07': 'Apple',
-    '88CB87': 'Apple',
-    '8C1AB4': 'Apple',
-    '8C5877': 'Apple',
-    '9027E4': 'Apple',
-    '907240': 'Apple',
-    '90840D': 'Apple',
-    '949426': 'Apple',
-    '9801A7': 'Apple',
-    '9C04EB': 'Apple',
-    '9C207B': 'Apple',
-    '9C2976': 'Apple',
-    '9C35EB': 'Apple',
-    '9CF48E': 'Apple',
-    'A0999B': 'Apple',
-    'A4B197': 'Apple',
-    'A4C361': 'Apple',
-    'A4D18C': 'Apple',
-    'A82066': 'Apple',
-    'A85B78': 'Apple',
-    'A89675': 'Apple',
-    'AC3A7A': 'Apple',
-    'ACBC32': 'Apple',
-    'B03495': 'Apple',
-    'B81799': 'Apple',
-    'B827EB': 'Apple',
-    'B8C75D': 'Apple',
-    'BC3BAF': 'Apple',
-    'BC4CC4': 'Apple',
-    'BC6778': 'Apple',
-    'C0847A': 'Apple',
-    'C0CECD': 'Apple',
-    'C0D012': 'Apple',
-    'C42C03': 'Apple',
-    'C81EE7': 'Apple',
-    'C86F1D': 'Apple',
-    'C8BCC8': 'Apple',
-    'CC29F5': 'Apple',
-    'D023DB': 'Apple',
-    'D03311': 'Apple',
-    'D065CA': 'Apple',
-    'D4619D': 'Apple',
-    'D49A20': 'Apple',
-    'D81D72': 'Apple',
-    'D83062': 'Apple',
-    'D89695': 'Apple',
-    'D8A25E': 'Apple',
-    'DC0B34': 'Apple',
-    'DC9B9C': 'Apple',
-    'E02A82': 'Apple',
-    'E05FB9': 'Apple',
-    'E0ACCB': 'Apple',
-    'E0B9BA': 'Apple',
-    'E0C767': 'Apple',
-    'E425E7': 'Apple',
-    'E80688': 'Apple',
-    'EC3586': 'Apple',
-    'F01898': 'Apple',
-    'F02475': 'Apple',
-    'F0761C': 'Apple',
-    'F099BF': 'Apple',
-    'F0B479': 'Apple',
-    'F0CBA1': 'Apple',
-    'F41563': 'Apple',
-    'F437B7': 'Apple',
-    'F45C89': 'Apple',
-    'F81EDF': 'Apple',
-    'F82793': 'Apple',
-    'F86214': 'Apple',
-    'FC253F': 'Apple',
-    'FCFC48': 'Apple',
-    '0050F2': 'Microsoft',
-    '00155D': 'Microsoft',
-    '0017FA': 'Microsoft',
-    '001D09': 'Microsoft',
-    '002248': 'Microsoft',
-    '002316': 'Microsoft',
-    '0025AE': 'Microsoft',
-    '00E04C': 'Realtek',
-    '000CE7': 'Motorola',
-    '8217AF': 'Xiaomi',
-    'CA7D57': 'Samsung',
-    '928D37': 'Huawei',
-    'FAF566': 'Oppo',
-    '669A95': 'Vivo',
-    'AAF94F': 'Realme',
-    '1626D7': 'Xiaomi',
-    '1EB5B9': 'Samsung',
-    '3C5AB4': 'Google',
-    'AC3743': 'Huawei',
-    'FCDC4F': 'Samsung',
-    '380E4D': 'Xiaomi',
-    '480EEC': 'Samsung',
-    '549A0F': 'Oppo',
-    '703ACE': 'Vivo',
-    '001A11': 'Samsung',
-    '001D0D': 'Sony',
-    '001EDC': 'Samsung',
-    '002119': 'Samsung',
-    '002339': 'Samsung',
-    '002454': 'Samsung',
-    '002666': 'Samsung',
-    '00E061': 'Samsung',
-    '0808C2': 'Samsung',
-    '0C1420': 'Samsung',
-    '103025': 'Samsung',
-    '14F65A': 'Xiaomi',
-    '182195': 'Samsung',
-    '1C62B8': 'Samsung',
-    '240AC4': 'Vivo',
-    '286CAB': 'Xiaomi',
-    '2C5491': 'Xiaomi',
-    '380B40': 'Samsung',
-    '44650D': 'Samsung',
-    '48137E': 'Samsung',
-    '4C3B74': 'Huawei',
-    '50642B': 'Xiaomi',
-    '549B12': 'Samsung',
-    '582D34': 'Oppo',
-    '5C497D': 'Samsung',
-    '606BBD': 'Samsung',
-    '683E26': 'Oppo',
-    '6C709F': 'Xiaomi',
-    '78521A': 'Samsung',
-    '804A14': 'Oppo',
-    '881196': 'Huawei',
-    '904C81': 'Huawei',
-    '9C8CD8': 'Huawei',
-    'A0EDCD': 'Vivo',
-    'AC4223': 'Xiaomi',
-    'B06EBF': 'Oppo',
-    'B83765': 'Xiaomi',
-    'BC7FA8': 'Huawei',
-    'C0210D': 'Samsung',
-    'CC07AB': 'Xiaomi',
-    'D8490F': 'Huawei',
-    'E0DCA2': 'Vivo',
-    'E89C25': 'Asus',
-    'EC233D': 'Xiaomi',
-    'F077C8': 'Xiaomi',
-    'F83E95': 'Vivo',
-    'FC64BA': 'Xiaomi',
-    '043604': 'Huawei',
-    '0C771A': 'Oppo',
-    '185680': 'Oppo',
-    '2418C6': 'Vivo',
-    '286D97': 'Oppo',
-    '3431C4': 'Huawei',
-    '486DFB': 'Xiaomi',
-    '549A08': 'Oppo',
-    '644BF0': 'Xiaomi',
-    '683F7D': 'Oppo',
-    '6C5C3D': 'Huawei',
-    '788C77': 'Xiaomi',
-    '808917': 'Oppo',
-    '885A92': 'Huawei',
-    '98523D': 'Oppo',
-    'A48D3B': 'Vivo',
-    'B07C25': 'Xiaomi',
-    'B43052': 'Huawei',
-    'C0EEFB': 'Oppo',
-    'CC81DA': 'Vivo',
-    'D494E8': 'Huawei',
-    'E47E9A': 'Xiaomi',
-    'F4C714': 'Oppo',
-    'FC167D': 'Vivo',
-    'D49A20': 'Apple',
-    'F49F54': 'Xiaomi',
-    'ACBCD7': 'Samsung',
-    '2C6939': 'Xiaomi',
-    '485929': 'Xiaomi',
-    '64CC2E': 'Xiaomi',
-    'A41115': 'Xiaomi'
-}
+CACHE_TIMEOUT = 600
+
+
+def _load_port_services():
+    if not HAS_DB:
+        return {
+            21: 'FTP', 22: 'SSH', 23: 'Telnet', 25: 'SMTP', 53: 'DNS',
+            80: 'HTTP', 110: 'POP3', 139: 'NetBIOS', 143: 'IMAP', 443: 'HTTPS',
+            445: 'SMB', 993: 'IMAPS', 995: 'POP3S', 3389: 'RDP', 5353: 'mDNS',
+            5900: 'VNC', 631: 'IPP', 5000: 'UPnP', 7000: 'AirPlay', 548: 'AFP',
+            3306: 'MySQL', 5432: 'PostgreSQL', 27017: 'MongoDB', 6379: 'Redis',
+            11211: 'Memcached', 1433: 'MSSQL', 1521: 'Oracle', 2375: 'Docker',
+            3000: 'Node/HTTP', 9200: 'Elasticsearch', 5601: 'Kibana',
+        }
+    key = 'scanner_port_services'
+    data = cache.get(key)
+    if data is None:
+        data = {p.port: p.service for p in PortService.objects.all()}
+        cache.set(key, data, CACHE_TIMEOUT)
+    return data
+
+
+def _load_oui_vendors():
+    if not HAS_DB:
+        return {}
+    key = 'scanner_oui_vendors'
+    data = cache.get(key)
+    if data is None:
+        data = {o.prefix.upper(): o.vendor for o in OuiVendor.objects.all()}
+        cache.set(key, data, CACHE_TIMEOUT)
+    return data
+
+
+def get_port_services():
+    return _load_port_services()
+
 
 def mac_to_vendor(mac):
     if not mac:
         return 'Unknown'
     mac = mac.strip().upper().replace(':','').replace('-','')
     prefix = mac[:6]
-    return OUI_VENDORS.get(prefix, 'Unknown')
+    vendors = _load_oui_vendors()
+    return vendors.get(prefix, 'Unknown')
+
+
+PORT_SERVICES = _load_port_services()
+
+
+# OUI_VENDORS kept as alias for backward compatibility
+OUI_VENDORS = _load_oui_vendors()
+
 
 def get_active_interface():
+    try:
+        import platform
+        system = platform.system().lower()
+        if system == 'windows':
+            return _get_active_interface_windows()
+        else:
+            return _get_active_interface_unix()
+    except Exception:
+        return None, None, None
+
+
+def _get_active_interface_unix():
     try:
         out = subprocess.check_output(['ifconfig'], text=True)
     except Exception:
@@ -318,7 +127,59 @@ def get_active_interface():
             return name, ip, netmask
     return None, None, None
 
+
+def _get_active_interface_windows():
+    try:
+        out = subprocess.check_output(['ipconfig'], text=True)
+    except Exception:
+        return None, None, None
+
+    lines = out.splitlines()
+    interfaces = {}
+    current = None
+    curr_lines = []
+    for line in lines:
+        line = line.rstrip()
+        if line and not line.startswith(' ') and not line.startswith('\t') and ':' in line:
+            if current:
+                interfaces[current] = curr_lines
+            current = line.split(':')[0].strip()
+            curr_lines = [line]
+        else:
+            curr_lines.append(line)
+    if current:
+        interfaces[current] = curr_lines
+
+    skip = {'Loopback Pseudo-Interface 1'}
+    for name, block in interfaces.items():
+        if name in skip:
+            continue
+        ip = None
+        netmask = None
+        for bline in block:
+            bline = bline.strip()
+            if 'IPv4 Address' in bline or 'IPv4 Address' in bline:
+                parts = bline.split(':')
+                if len(parts) >= 2:
+                    ip = parts[1].strip().replace('(Preferred)', '')
+            if 'Subnet Mask' in bline:
+                parts = bline.split(':')
+                if len(parts) >= 2:
+                    netmask = parts[1].strip()
+        if ip and netmask and not ip.startswith('127.'):
+            return name, ip, netmask
+    return None, None, None
+
+
 def get_gateway():
+    import platform
+    system = platform.system().lower()
+    if system == 'windows':
+        return _get_gateway_windows()
+    return _get_gateway_unix()
+
+
+def _get_gateway_unix():
     try:
         out = subprocess.check_output(['route', '-n', 'get', 'default'], text=True)
         for line in out.splitlines():
@@ -331,7 +192,30 @@ def get_gateway():
         pass
     return None
 
+
+def _get_gateway_windows():
+    try:
+        out = subprocess.check_output(['route', 'print', '0.0.0.0'], text=True)
+        for line in out.splitlines():
+            line = line.strip()
+            if line.startswith('0.0.0.0'):
+                parts = line.split()
+                if len(parts) >= 3:
+                    return parts[2]
+    except Exception:
+        pass
+    return None
+
+
 def get_dns_servers():
+    import platform
+    system = platform.system().lower()
+    if system == 'windows':
+        return _get_dns_servers_windows()
+    return _get_dns_servers_unix()
+
+
+def _get_dns_servers_unix():
     try:
         out = subprocess.check_output(['scutil', '--dns'], text=True)
         servers = []
@@ -345,20 +229,58 @@ def get_dns_servers():
     except Exception:
         return []
 
-def get_mac_from_arp(ip):
+
+def _get_dns_servers_windows():
     try:
-        out = subprocess.check_output(['arp', '-a'], text=True)
+        out = subprocess.check_output(
+            ['powershell', '-Command', 'Get-DnsClientServerAddress -AddressFamily IPv4 | Select-Object -ExpandProperty ServerAddresses'],
+            text=True,
+        )
+        servers = []
         for line in out.splitlines():
             line = line.strip()
-            if f'({ip})' in line or f' {ip} ' in line:
-                parts = line.split()
+            if line and re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', line):
+                servers.append(line)
+        return servers
+    except Exception:
+        pass
+    return []
+
+
+def build_arp_cache():
+    try:
+        out = subprocess.check_output(['arp', '-a'], text=True)
+        cache = {}
+        for line in out.splitlines():
+            line = line.strip()
+            parts = line.split()
+            if len(parts) >= 3:
+                ip = None
+                mac = None
+                if parts[0].startswith('[') and parts[1].endswith(']'):
+                    ip = parts[1].strip('[]')
+                elif '(' in line and ')' in line:
+                    m = re.search(r'\(([^)]+)\)', line)
+                    if m:
+                        ip = m.group(1)
                 for p in parts:
                     p = p.strip()
                     if ':' in p and len(p) == 17:
-                        return p.lower()
+                        mac = p.lower()
+                        break
+                if ip and mac:
+                    cache[ip] = mac
+        return cache
     except Exception:
-        pass
-    return None
+        return {}
+
+
+def get_mac_from_arp(ip, arp_cache=None):
+    if arp_cache is not None:
+        return arp_cache.get(str(ip))
+    cache = build_arp_cache()
+    return cache.get(str(ip))
+
 
 def measure_latency(ip, ports):
     last = None
@@ -375,14 +297,25 @@ def measure_latency(ip, ports):
             pass
     return last
 
+
 def ping_host(ip):
+    import platform
+    system = platform.system().lower()
     try:
-        out = subprocess.check_output(
-            ['ping', '-c', '1', '-W', '1000', str(ip)],
-            stderr=subprocess.DEVNULL,
-            text=True,
-            timeout=2,
-        )
+        if system == 'windows':
+            out = subprocess.check_output(
+                ['ping', '-n', '1', '-w', '300', str(ip)],
+                stderr=subprocess.DEVNULL,
+                text=True,
+                timeout=1,
+            )
+        else:
+            out = subprocess.check_output(
+                ['ping', '-c', '1', '-W', '1', str(ip)],
+                stderr=subprocess.DEVNULL,
+                text=True,
+                timeout=1,
+            )
         ttl = None
         m = re.search(r'ttl=(\d+)', out, re.IGNORECASE)
         if m:
@@ -391,34 +324,34 @@ def ping_host(ip):
     except Exception:
         return False, None
 
-def scan_host(ip, ports=(22, 80, 443, 445, 139, 3389, 53, 5353, 5900, 631, 5000, 7000, 548, 3306, 5432, 6379, 2375, 9200, 8080, 8443, 1883, 8883, 554, 8000, 9090, 10001)):
-    open_ports = []
+
+def _probe_port(ip, port, timeout=0.3):
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(timeout)
+        s.connect((str(ip), port))
+        s.close()
+        return port
+    except Exception:
+        return None
+
+
+def scan_host(ip, ports=(22, 80, 443, 445, 139, 3389, 53, 5353, 5900, 3306, 5432, 6379, 2375, 9200, 8080, 8443, 1883, 8883, 554, 8000, 9090), arp_cache=None):
     hostname = None
     try:
         hostname = socket.gethostbyaddr(str(ip))[0]
     except Exception:
         pass
-
-    for port in ports:
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(0.7)
-            s.connect((str(ip), port))
-            s.close()
-            open_ports.append(port)
-        except Exception:
-            pass
-    latency_ms = measure_latency(ip, open_ports) if open_ports else None
-    mac = get_mac_from_arp(str(ip))
-    services = [PORT_SERVICES[p] for p in open_ports if p in PORT_SERVICES]
+    mac = get_mac_from_arp(str(ip), arp_cache)
     return {
         'ip': str(ip),
-        'open_ports': open_ports,
+        'open_ports': [],
         'hostname': hostname,
-        'latency_ms': latency_ms,
+        'latency_ms': None,
         'mac_address': mac,
-        'services': services,
+        'services': [],
     }
+
 
 def guess_device_from_hostname(hn, ports):
     if hn:
@@ -460,6 +393,7 @@ def guess_device_from_hostname(hn, ports):
         return 'Workstation/IoT'
     return 'Unknown'
 
+
 def guess_os_from_ports(open_ports, hostname):
     ports = set(open_ports)
     hn = (hostname or '').lower()
@@ -486,6 +420,7 @@ def guess_os_from_ports(open_ports, hostname):
     if 5900 in ports:
         return 'Unknown'
     return 'Unknown'
+
 
 def guess_brand(hostname, mac, services):
     if mac:
@@ -518,6 +453,7 @@ def guess_brand(hostname, mac, services):
             return 'Windows PC'
     return 'Unknown'
 
+
 def guess_os_from_ttl(ttl):
     if ttl is None:
         return 'Unknown'
@@ -528,6 +464,7 @@ def guess_os_from_ttl(ttl):
     if ttl <= 255:
         return 'Network/Embedded'
     return 'Unknown'
+
 
 def guess_device_from_fallback(hostname, mac, ttl, brand):
     hn = (hostname or '').lower()
@@ -583,6 +520,7 @@ def guess_device_from_fallback(hostname, mac, ttl, brand):
 
     return 'Active Host'
 
+
 def scan_network(subnet=None, max_hosts=254, max_workers=120):
     iface_name, ip_addr, netmask = get_active_interface()
     if not ip_addr or not netmask:
@@ -609,44 +547,68 @@ def scan_network(subnet=None, max_hosts=254, max_workers=120):
                 alive_ips.add(str(ip))
                 alive_with_ttl[str(ip)] = ttl
 
-    results = []
+    if not alive_ips:
+        public_ip = get_public_ip()
+        isp_info = get_isp_info(public_ip)
+        return [], isp_info
+
+    arp_cache = build_arp_cache()
+
+    ports = (22, 80, 443, 445, 139, 3389, 53, 5353, 5900, 3306, 5432, 6379, 2375, 9200, 8080, 8443, 1883, 8883, 554, 8000, 9090)
+
+    results_map = {}
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(scan_host, ip): ip for ip in hosts}
-        for future in as_completed(futures):
+        host_futures = {executor.submit(scan_host, ip, ports, arp_cache): ip for ip in hosts}
+        for future in as_completed(host_futures):
             res = future.result()
             ip_str = res['ip']
             if ip_str not in alive_ips:
                 continue
+            results_map[ip_str] = res
 
-            hostname = res['hostname']
-            mac = res['mac_address']
-            ports = res['open_ports']
-            services = res['services']
-            latency_ms = res['latency_ms']
-            ttl = alive_with_ttl.get(ip_str)
-            brand = guess_brand(hostname, mac, services)
+        port_futures = {}
+        for ip_str in results_map:
+            for port in ports:
+                port_futures[executor.submit(_probe_port, ip_str, port)] = (ip_str, port)
 
-            if ports:
-                device = guess_device_from_hostname(hostname, ports)
-                os_name = guess_os_from_ports(ports, hostname)
-            else:
-                device = guess_device_from_fallback(hostname, mac, ttl, brand)
-                os_name = guess_os_from_ttl(ttl)
+        for future in as_completed(port_futures):
+            ip_str, port = port_futures[future]
+            result = future.result()
+            if result is not None:
+                results_map[ip_str]['open_ports'].append(port)
 
-            results.append({
-                'ip': ip_str,
-                'device': device,
-                'os': os_name,
-                'brand': brand,
-                'gateway': gateway_ip,
-                'router': gateway_ip,
-                'dns': dns_servers[0] if dns_servers else None,
-                'mac_address': mac,
-                'latency_ms': latency_ms,
-                'open_ports': ports,
-                'services': services,
-                'server_info': detect_server_info(hostname, ports, services),
-            })
+    results = []
+    for ip_str, res in results_map.items():
+        hostname = res['hostname']
+        mac = res['mac_address']
+        ports_open = sorted(res['open_ports'])
+        services = [PORT_SERVICES.get(p) for p in ports_open if p in PORT_SERVICES]
+        latency_ms = measure_latency(ip_str, ports_open) if ports_open else None
+        ttl = alive_with_ttl.get(ip_str)
+        brand = guess_brand(hostname, mac, services)
+
+        if ports_open:
+            device = guess_device_from_hostname(hostname, ports_open)
+            os_name = guess_os_from_ports(ports_open, hostname)
+        else:
+            device = guess_device_from_fallback(hostname, mac, ttl, brand)
+            os_name = guess_os_from_ttl(ttl)
+
+        results.append({
+            'ip': ip_str,
+            'device': device,
+            'os': os_name,
+            'brand': brand,
+            'gateway': gateway_ip,
+            'router': gateway_ip,
+            'dns': dns_servers[0] if dns_servers else None,
+            'mac_address': mac,
+            'latency_ms': latency_ms,
+            'open_ports': ports_open,
+            'services': services,
+            'server_info': detect_server_info(hostname, ports_open, services),
+        })
+
     public_ip = get_public_ip()
     isp_info = get_isp_info(public_ip)
     for r in results:
@@ -657,13 +619,20 @@ def scan_network(subnet=None, max_hosts=254, max_workers=120):
 
 
 def get_public_ip():
+    if HAS_DB:
+        cached = cache.get('scanner_public_ip')
+        if cached:
+            return cached
     try:
-        out = subprocess.check_output(
-            ['curl', '-s', '--max-time', '3', 'https://api.ipify.org'],
-            text=True, timeout=5,
+        req = urllib.request.Request(
+            'https://api.ipify.org',
+            headers={'User-Agent': 'Mozilla/5.0'},
         )
-        ip = out.strip()
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            ip = resp.read().decode().strip()
         if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', ip):
+            if HAS_DB:
+                cache.set('scanner_public_ip', ip, 300)
             return ip
     except Exception:
         pass
@@ -674,14 +643,20 @@ def get_isp_info(public_ip=None):
     ip = public_ip or get_public_ip()
     if not ip:
         return {}
+    if HAS_DB:
+        cache_key = f'scanner_isp_info:{ip}'
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
     try:
-        out = subprocess.check_output(
-            ['curl', '-s', '--max-time', '3', f'https://ip-api.com/json/{ip}?fields=isp,org,as,country,regionName,city,status,message'],
-            text=True, timeout=5,
+        req = urllib.request.Request(
+            f'https://ip-api.com/json/{ip}?fields=isp,org,as,country,regionName,city,status,message',
+            headers={'User-Agent': 'Mozilla/5.0'},
         )
-        data = json.loads(out)
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
         if data.get('status') == 'success':
-            return {
+            result = {
                 'isp': data.get('isp'),
                 'org': data.get('org'),
                 'as': data.get('as'),
@@ -689,9 +664,51 @@ def get_isp_info(public_ip=None):
                 'region': data.get('regionName'),
                 'city': data.get('city'),
             }
+            if HAS_DB:
+                cache.set(cache_key, result, 300)
+                _save_isp_info(ip, result)
+            return result
+    except Exception:
+        pass
+    try:
+        req = urllib.request.Request(
+            f'https://freeipapi.com/api/json/{ip}',
+            headers={'User-Agent': 'Mozilla/5.0'},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+        result = {
+            'isp': data.get('asnOrganization') or data.get('org') or data.get('isp'),
+            'org': data.get('asnOrganization') or data.get('org') or data.get('isp'),
+            'as': data.get('asn'),
+            'country': data.get('countryName'),
+            'region': data.get('regionName'),
+            'city': data.get('cityName'),
+        }
+        if HAS_DB:
+            cache.set(cache_key, result, 300)
+            _save_isp_info(ip, result)
+        return result
     except Exception:
         pass
     return {}
+
+
+def _save_isp_info(ip, info):
+    if not HAS_DB or not IspInfo or not ip:
+        return
+    try:
+        defaults = {
+            'isp': info.get('isp') or info.get('org'),
+            'org': info.get('org'),
+            'as_number': info.get('as'),
+            'country': info.get('country'),
+            'region': info.get('region'),
+            'city': info.get('city'),
+        }
+        IspInfo.objects.update_or_create(ip=ip, defaults=defaults)
+    except Exception:
+        pass
 
 
 def detect_server_info(hostname, ports, services):
@@ -749,6 +766,18 @@ def detect_server_info(hostname, ports, services):
 
 def get_wan_interface_info():
     try:
+        import platform
+        system = platform.system().lower()
+        if system == 'windows':
+            return _get_wan_interface_info_windows()
+        return _get_wan_interface_info_unix()
+    except Exception:
+        pass
+    return {}
+
+
+def _get_wan_interface_info_unix():
+    try:
         out = subprocess.check_output(['ifconfig'], text=True)
         lines = out.splitlines()
         interfaces = {}
@@ -782,6 +811,46 @@ def get_wan_interface_info():
                 return {
                     'interface': name,
                     'media': media,
+                }
+    except Exception:
+        pass
+    return {}
+
+
+def _get_wan_interface_info_windows():
+    try:
+        out = subprocess.check_output(['ipconfig'], text=True)
+        lines = out.splitlines()
+        interfaces = {}
+        current = None
+        curr_lines = []
+        for line in lines:
+            line = line.rstrip()
+            if line and not line.startswith(' ') and not line.startswith('\t') and ':' in line:
+                if current:
+                    interfaces[current] = curr_lines
+                current = line.split(':')[0].strip()
+                curr_lines = [line]
+            else:
+                curr_lines.append(line)
+        if current:
+            interfaces[current] = curr_lines
+
+        skip = {'Loopback Pseudo-Interface 1'}
+        for name, block in interfaces.items():
+            if name in skip:
+                continue
+            has_ip = False
+            for bline in block:
+                bline = bline.strip()
+                if bline.startswith('IPv4 Address') and ':' in bline:
+                    parts = bline.split(':', 1)
+                    if len(parts) == 2 and parts[1].strip() and not parts[1].strip().startswith('127.'):
+                        has_ip = True
+            if has_ip:
+                return {
+                    'interface': name,
+                    'media': 'Ethernet/Wi-Fi',
                 }
     except Exception:
         pass
