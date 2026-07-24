@@ -7,7 +7,7 @@ from django.core.paginator import Paginator
 from django.conf import settings
 from django.db import connection
 from django.core.cache import cache
-from apps.scan.models import Scan
+from apps.scan.models import Scan, ScanPort, ScanMacHistory, IspInfo
 from apps.scan.scanner import get_public_ip, get_isp_info, get_wan_interface_info
 from .models import DbMaintenance
 from .models import DbMaintenance
@@ -190,6 +190,102 @@ def network_map(request):
         'wan_interface': wan_info.get('interface') or 'Unknown',
         'wan_media': wan_info.get('media') or 'Unknown',
     })
+
+
+@login_required
+def router_clients(request):
+    scans = Scan.objects.all()
+    gateway_scan = scans.filter(gateway__isnull=False).order_by('-scanned_at').first()
+    gateway_ip = gateway_scan.gateway if gateway_scan else None
+    if not gateway_ip:
+        gateway_ip = scans.filter(router__isnull=False).order_by('-scanned_at').first().router if scans.filter(router__isnull=False).exists() else None
+    if not gateway_ip:
+        gateway_ip = get_gateway()
+
+    router_info = {
+        'ip': gateway_ip,
+        'device': gateway_scan.device if gateway_scan else 'Unknown',
+        'os': gateway_scan.os if gateway_scan else 'Unknown',
+        'brand': gateway_scan.brand or 'Unknown' if gateway_scan else 'Unknown',
+        'mac_address': gateway_scan.mac_address or 'Unknown' if gateway_scan else 'Unknown',
+        'latency_ms': gateway_scan.latency_ms if gateway_scan else None,
+        'open_ports': gateway_scan.open_ports if gateway_scan else [],
+        'services': gateway_scan.services if gateway_scan else {},
+        'server_info': gateway_scan.server_info if gateway_scan else None,
+        'dns': gateway_scan.dns if gateway_scan else None,
+        'scanned_at': gateway_scan.scanned_at if gateway_scan else None,
+    }
+
+    public_ip = cache.get('network_public_ip')
+    isp_info = cache.get('network_isp_info')
+    wan_info = cache.get('network_wan_info')
+    if public_ip is None:
+        public_ip = get_public_ip()
+        cache.set('network_public_ip', public_ip, 300)
+    if isp_info is None:
+        isp_info = get_isp_info(public_ip)
+        cache.set('network_isp_info', isp_info, 300)
+    if wan_info is None:
+        wan_info = get_wan_interface_info()
+        cache.set('network_wan_info', wan_info, 300)
+
+    db_isp = IspInfo.objects.filter(ip=public_ip).first() if public_ip else None
+    if db_isp:
+        router_isp = {
+            'isp': db_isp.isp or isp_info.get('isp') or 'Unknown',
+            'org': db_isp.org or isp_info.get('org') or 'Unknown',
+            'as': db_isp.as_number or isp_info.get('as') or 'Unknown',
+            'country': db_isp.country or isp_info.get('country') or 'Unknown',
+            'region': db_isp.region or isp_info.get('region') or 'Unknown',
+            'city': db_isp.city or isp_info.get('city') or 'Unknown',
+        }
+    else:
+        router_isp = {
+            'isp': isp_info.get('isp') or 'Unknown',
+            'org': isp_info.get('org') or 'Unknown',
+            'as': isp_info.get('as') or 'Unknown',
+            'country': isp_info.get('country') or 'Unknown',
+            'region': isp_info.get('region') or 'Unknown',
+            'city': isp_info.get('city') or 'Unknown',
+        }
+
+    clients = scans.exclude(ip=gateway_ip).order_by('-scanned_at') if gateway_ip else scans.order_by('-scanned_at')
+    client_list = []
+    for scan in clients:
+        mac = scan.mac_address
+        if mac:
+            from apps.scan.scanner import mac_to_vendor
+            vendor = mac_to_vendor(mac)
+        else:
+            vendor = 'Unknown'
+        client_list.append({
+            'ip': scan.ip,
+            'device': scan.device,
+            'os': scan.os,
+            'brand': scan.brand or 'Unknown',
+            'mac_address': mac or '—',
+            'vendor': vendor,
+            'latency_ms': scan.latency_ms or '—',
+            'open_ports': scan.open_ports or [],
+            'services': scan.services or {},
+            'gateway': scan.gateway,
+            'dns': scan.dns,
+            'public_ip': scan.public_ip,
+            'isp_name': scan.isp_name or router_isp.get('isp'),
+            'isp_org': scan.isp_org or router_isp.get('org'),
+            'scanned_at': scan.scanned_at,
+        })
+
+    return render(request, 'router_clients.html', {
+        'router': router_info,
+        'router_isp': router_isp,
+        'router_wan': wan_info,
+        'public_ip': public_ip or 'Unknown',
+        'clients': client_list,
+        'total_devices': scans.count(),
+        'total_clients': len(client_list),
+    })
+
 
 @login_required
 def db_maintenance(request):
