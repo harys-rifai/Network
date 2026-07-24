@@ -3,142 +3,113 @@
 {% block content %}
 <div class="page-header">
     <h1>Database Maintenance</h1>
-    <a href="/" class="btn-small">&larr; Back to Dashboard</a>
+    <a href="/" class="btn-small">&larr; Dashboard</a>
 </div>
 
 {% if error %}
-<div class="alert-card alert-danger" style="margin-bottom:1rem;">
-    Error: {{ error }}
-</div>
+<div class="alert-row"><div class="alert-card alert-danger">Error: {{ error }}</div></div>
 {% endif %}
-
 {% if message %}
-<div class="alert-card alert-success" style="margin-bottom:1rem;">
-    {{ message }}
-</div>
+<div class="alert-row"><div class="alert-card alert-success">{{ message }}</div></div>
 {% endif %}
 
 <div class="db-unified">
-    <div class="db-card db-card--main">
+    <div class="db-card">
         <h2>Database Tables</h2>
-        <p class="db-subtitle">Tables in database: <code>{{ db_vendor }}</code></p>
+        <p class="db-subtitle">Vendor: <code>{{ db_vendor }}</code></p>
 
         {% if tables %}
-        <form method="post" id="global-action-form" class="global-actions-bar">
+        <form method="post" id="main-form" class="global-actions-bar">
             {% csrf_token %}
-            <input type="checkbox" id="select-all" onchange="toggleAll(this)">
-            <span id="selected-count"></span>
-            <input type="hidden" name="action" value="" id="global-action-input">
-            <button type="button" class="btn-small btn-primary-small" onclick="submitGlobalAction('vacuum')">VACUUM FULL</button>
-            <button type="button" class="btn-small" onclick="submitGlobalAction('reindex')">Reindex</button>
-            <button type="button" class="btn-small" onclick="submitGlobalAction('indexes')">Indexes</button>
+            <input type="checkbox" id="select-all" onchange="toggleAll(this)" title="Select all visible">
+            <span id="selected-count" style="display:none;"></span>
+            <input type="hidden" name="action" id="action-input" value="">
+            <button type="button" class="btn-small" onclick="doAction('vacuum')">VACUUM FULL</button>
+            <button type="button" class="btn-small" onclick="doAction('reindex')">Reindex</button>
+            <button type="button" class="btn-small" onclick="doAction('indexes')">Rebuild Indexes</button>
         </form>
-        <div class="table-wrapper">
-            <table class="hacker-table">
-                <thead>
-                    <tr>
-                        <th class="select-col"></th>
-                        <th>Table Name</th>
-                        <th>Vacuum Status</th>
-                        <th>Index Status</th>
-                        <th>Rebuild Status</th>
-                        <th>Records</th>
-                        <th>Size</th>
-                        <th>Last Maintenance</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in tables %}
-                    <tr>
-                        <td class="select-col">
-                            <input type="checkbox" name="selected_tables" value="{{ row.table_name }}" class="table-checkbox" onchange="updateGlobalActions()">
-                        </td>
-                        <td><code>{{ row.table_name }}</code></td>
-                        <td>
-                            <span class="status-pill {% if row.vacuum_status == 'Done' %}status-online{% endif %}">
-                                {{ row.vacuum_status }}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="status-pill {% if row.index_status == 'Done' %}status-online{% endif %}">
-                                {{ row.index_status }}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="status-pill {% if row.rebuild_status == 'Done' %}status-online{% endif %}">
-                                {{ row.rebuild_status }}
-                            </span>
-                        </td>
-                        <td class="status-meta">{{ row.record_count }}</td>
-                        <td class="status-meta">{{ row.table_size }}</td>
-                        <td class="status-meta">{{ row.last_maintenance|date:"Y-m-d H:i"|default:"-" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        
-        {% if page_obj.paginator.num_pages > 1 %}
-        <div class="pagination" style="margin-top: 1rem;">
-            <span class="pagination-info">
-                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                &nbsp;|&nbsp;
-                {{ page_obj.paginator.count }} table{{ page_obj.paginator.count|pluralize }}
-            </span>
-            <div class="pagination-actions">
-                {% if page_obj.has_previous %}
-                    <a href="?page=1" class="btn-pagination">&laquo; First</a>
-                    <a href="?page={{ page_obj.previous_page_number }}" class="btn-pagination">&lsaquo; Prev</a>
-                {% endif %}
-                {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}" class="btn-pagination">Next &rsaquo;</a>
-                    <a href="?page={{ page_obj.paginator.num_pages }}" class="btn-pagination">Last &raquo;</a>
-                {% endif %}
+
+        <div class="table-block">
+            <div class="table-wrapper">
+                <table class="hacker-table">
+                    <thead>
+                        <tr>
+                            <th class="select-col">
+                                <input type="checkbox" id="select-all-th" onchange="toggleAll(this)" title="Select all">
+                            </th>
+                            <th>Table Name</th>
+                            <th>Rows</th>
+                            <th>Size</th>
+                            <th>Vacuum</th>
+                            <th>Indexes</th>
+                            <th>Rebuild</th>
+                            <th>Last Maintenance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in tables %}
+                        <tr>
+                            <td class="select-col">
+                                <input type="checkbox" name="selected_tables"
+                                       value="{{ row.table_name }}"
+                                       class="row-check" onchange="onCheck()">
+                            </td>
+                            <td><code style="color:var(--accent);font-size:0.78rem;">{{ row.table_name }}</code></td>
+                            <td class="status-meta">{{ row.record_count }}</td>
+                            <td class="status-meta">{{ row.table_size }}</td>
+                            <td>
+                                <span class="status-pill {% if row.vacuum_status == 'Done' %}status-online{% else %}status-pending{% endif %}">
+                                    {{ row.vacuum_status|default:"—" }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-pill {% if row.index_status == 'Done' %}status-online{% else %}status-pending{% endif %}">
+                                    {{ row.index_status|default:"—" }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-pill {% if row.rebuild_status == 'Done' %}status-online{% else %}status-pending{% endif %}">
+                                    {{ row.rebuild_status|default:"—" }}
+                                </span>
+                            </td>
+                            <td class="status-meta">{{ row.last_maintenance|date:"Y-m-d H:i"|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
+            {% include 'pagination.html' %}
         </div>
-        {% endif %}
-        
         {% else %}
-        <p class="note">No tables found or not PostgreSQL.</p>
+        <p class="note">No tables found or database is not PostgreSQL.</p>
         {% endif %}
     </div>
 </div>
 
 <script>
-function toggleAll(source) {
-    const checkboxes = document.querySelectorAll('.table-checkbox');
-    checkboxes.forEach(cb => cb.checked = source.checked);
-    updateGlobalActions();
+function toggleAll(src) {
+    document.querySelectorAll('.row-check').forEach(cb => cb.checked = src.checked);
+    // sync both checkboxes
+    document.querySelectorAll('#select-all, #select-all-th').forEach(cb => cb.checked = src.checked);
+    onCheck();
 }
-
-function updateGlobalActions() {
-    const selected = document.querySelectorAll('.table-checkbox:checked');
-    const count = document.getElementById('selected-count');
-    if (count) {
-        if (selected.length > 0) {
-            count.textContent = selected.length + ' table' + (selected.length > 1 ? 's' : '') + ' selected';
-            count.style.display = 'inline';
-        } else {
-            count.style.display = 'none';
-        }
-    }
+function onCheck() {
+    const n = document.querySelectorAll('.row-check:checked').length;
+    const el = document.getElementById('selected-count');
+    el.textContent = n + ' table' + (n !== 1 ? 's' : '') + ' selected';
+    el.style.display = n > 0 ? 'inline' : 'none';
 }
-
-function submitGlobalAction(action) {
-    const selected = Array.from(document.querySelectorAll('.table-checkbox:checked')).map(cb => cb.value);
-    if (selected.length === 0) {
-        alert('Please select at least one table');
-        return;
-    }
-    const form = document.getElementById('global-action-form');
+function doAction(action) {
+    const checks = [...document.querySelectorAll('.row-check:checked')];
+    if (checks.length === 0) { alert('Select at least one table first.'); return; }
+    document.getElementById('action-input').value = action;
+    const form = document.getElementById('main-form');
+    // remove old hidden inputs
     form.querySelectorAll('input[name="selected_tables"]').forEach(i => i.remove());
-    document.getElementById('global-action-input').value = action;
-    selected.forEach(name => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'selected_tables';
-        input.value = name;
-        form.appendChild(input);
+    checks.forEach(cb => {
+        const h = document.createElement('input');
+        h.type = 'hidden'; h.name = 'selected_tables'; h.value = cb.value;
+        form.appendChild(h);
     });
     form.submit();
 }

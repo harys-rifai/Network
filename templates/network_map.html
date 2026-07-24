@@ -1,51 +1,103 @@
 {% extends 'base.html' %}
-{% load scan_extras %}
+{% block title %}Network Map — NET-MON{% endblock %}
+{% block extra_head %}<script>window.__USE_VIS__ = true;</script>{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <h1>Network Topology</h1>
     <div class="network-stats">
-        <span class="stat-pill">Total: {{ total_devices }}</span>
-        <span class="stat-pill stat-online">Online: {{ online_count }}</span>
-        <span class="stat-pill stat-gateway">Gateway: {{ gateway_ip }}</span>
-        <a href="/scan/add/" class="btn-primary">+ New Scan</a>
+        <span class="stat-pill">{{ total_devices }} device{{ total_devices|pluralize }}</span>
+        <span class="stat-pill stat-online">{{ online_count }} online</span>
+        <span class="stat-pill stat-gateway">GW: {{ gateway_ip }}</span>
+        <a href="{% url 'scan_trigger' %}" class="btn-primary">+ Run Scan</a>
     </div>
 </div>
 
 <div class="network-layout">
+
+    <!-- Canvas -->
     <div class="network-main">
-        <div class="chart-box network-map-box">
-            <div id="network" class="network-canvas"></div>
+        <div class="chart-box network-map-box" style="padding:0.5rem;">
+            <div id="network-canvas" class="network-canvas"></div>
         </div>
     </div>
+
+    <!-- Sidebar -->
     <div class="network-side">
+
+        <!-- ISP / Connection -->
         <div class="chart-box">
-            <h2>ISP & Connection</h2>
+            <h2 style="margin-bottom:0.6rem;">ISP &amp; Connection</h2>
             <div class="isp-info">
-                <div class="isp-row"><span class="isp-label">ISP</span><span class="isp-value">{{ isp_name }}</span></div>
-                <div class="isp-row"><span class="isp-label">Org</span><span class="isp-value">{{ isp_org }}</span></div>
-                <div class="isp-row"><span class="isp-label">Public IP</span><span class="isp-value">{{ public_ip }}</span></div>
-                <div class="isp-row"><span class="isp-label">Location</span><span class="isp-value">{{ isp_location }}</span></div>
-                <div class="isp-row"><span class="isp-label">ASN</span><span class="isp-value">{{ isp_as }}</span></div>
-                <div class="isp-row"><span class="isp-label">Interface</span><span class="isp-value">{{ wan_interface }}</span></div>
-                <div class="isp-row"><span class="isp-label">Media</span><span class="isp-value">{{ wan_media }}</span></div>
+                <div class="isp-row">
+                    <span class="isp-label">ISP</span>
+                    <span class="isp-value">{{ isp_name }}</span>
+                </div>
+                <div class="isp-row">
+                    <span class="isp-label">Org</span>
+                    <span class="isp-value">{{ isp_org }}</span>
+                </div>
+                <div class="isp-row">
+                    <span class="isp-label">Public IP</span>
+                    <span class="isp-value">{{ public_ip }}</span>
+                </div>
+                <div class="isp-row">
+                    <span class="isp-label">Location</span>
+                    <span class="isp-value">{{ isp_location }}</span>
+                </div>
+                <div class="isp-row">
+                    <span class="isp-label">ASN</span>
+                    <span class="isp-value">{{ isp_as }}</span>
+                </div>
+                <div class="isp-row">
+                    <span class="isp-label">Interface</span>
+                    <span class="isp-value">{{ wan_interface }}</span>
+                </div>
+                <div class="isp-row">
+                    <span class="isp-label">Media</span>
+                    <span class="isp-value">{{ wan_media }}</span>
+                </div>
             </div>
         </div>
+
+        <!-- Legend -->
         <div class="chart-box">
-            <h2>Legend</h2>
+            <h2 style="margin-bottom:0.6rem;">Legend</h2>
             <div class="legend-list">
-                <div class="legend-item"><span class="legend-dot" style="background:#60a5fa;box-shadow:0 0 8px #60a5fa;"></span><span>ISP / Internet</span></div>
-                <div class="legend-item"><span class="legend-dot" style="background:#22c55e;box-shadow:0 0 8px #22c55e;"></span><span>Gateway</span></div>
-                <div class="legend-item"><span class="legend-dot" style="background:#facc15;box-shadow:0 0 8px #facc15;"></span><span>Device</span></div>
-                <div class="legend-item"><span class="legend-line" style="background:#60a5fa;box-shadow:0 0 6px #60a5fa;"></span><span>WAN Link</span></div>
-                <div class="legend-item"><span class="legend-line" style="background:#22c55e;box-shadow:0 0 6px #22c55e;"></span><span>LAN Link</span></div>
+                <div class="legend-item">
+                    <span class="legend-dot" style="background:#60a5fa;box-shadow:0 0 6px #60a5fa;"></span>
+                    <span>ISP / Internet</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-dot" style="background:#22c55e;box-shadow:0 0 6px #22c55e;"></span>
+                    <span>Gateway Router</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-dot" style="background:#facc15;box-shadow:0 0 6px #facc15;"></span>
+                    <span>Network Device</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-line" style="background:#60a5fa;"></span>
+                    <span>WAN Link</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-line" style="background:#22c55e;"></span>
+                    <span>LAN Link</span>
+                </div>
             </div>
         </div>
+
+        <!-- Device status list -->
         <div class="chart-box">
-            <h2>Status</h2>
+            <h2 style="margin-bottom:0.6rem;">
+                Devices
+                <span style="color:var(--text-muted);font-size:0.7rem;font-weight:400;margin-left:0.35rem;">
+                    ({{ total_devices }} total)
+                </span>
+            </h2>
             <div class="status-list">
-                {% for scan in scans|slice:":15" %}
-                <div class="status-item status-item--{{ scan.os|lower|cut:' ' }}">
+                {% for scan in scans %}
+                <div class="status-item">
                     <span class="status-dot"></span>
                     <span class="status-label">{{ scan.ip }}</span>
                     <span class="status-text">{{ scan.device }}</span>
@@ -55,37 +107,64 @@
                 {% endfor %}
             </div>
         </div>
-    </div>
-</div>
+
+    </div><!-- /network-side -->
+</div><!-- /network-layout -->
 {% endblock %}
 
 {% block extra_js %}
 <script>
-const container = document.getElementById('network');
-const data = {{ networks|safe }};
-const options = {
-    nodes: {
-        shape: 'dot',
-        size: 18,
-        font: { color: '#e5e7eb', size: 12, face: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
-        borderWidth: 2,
-        shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 8 }
-    },
-    edges: {
-        width: 1.5,
-        color: { color: '#22c55e', highlight: '#facc15', opacity: 0.8 },
-        smooth: { type: 'continuous', roundness: 0.5 }
-    },
-    physics: {
-        enabled: true,
-        stabilization: true,
-        barnesHut: { gravitationalConstant: -3000, springLength: 160, springConstant: 0.04, centralGravity: 0.3 }
-    },
-    interaction: { hover: true, tooltipDelay: 80 }
-};
-const network = new vis.Network(container, data, options);
-network.once('stabilized', function() {
-    network.fit({ animation: { duration: 800, easingFunction: 'easeInOutQuad' }});
-});
+(function () {
+    /* vis-network is loaded via <script defer> only when window.__USE_VIS__ is set.
+       We wait for it to be available before rendering. */
+    function initMap() {
+        var container = document.getElementById('network-canvas');
+        if (!container) return;
+
+        var data    = {{ networks|safe }};
+        var options = {
+            nodes: {
+                shape: 'dot',
+                size: 18,
+                font: {
+                    color: '#e5e7eb', size: 12,
+                    face: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
+                },
+                borderWidth: 2,
+                shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 8 }
+            },
+            edges: {
+                width: 1.5,
+                color: { color: '#374151', highlight: '#facc15', opacity: 0.9 },
+                smooth: { type: 'continuous', roundness: 0.4 }
+            },
+            physics: {
+                enabled: true,
+                stabilization: { iterations: 150 },
+                barnesHut: {
+                    gravitationalConstant: -3000,
+                    springLength: 160,
+                    springConstant: 0.04,
+                    centralGravity: 0.3
+                }
+            },
+            interaction: { hover: true, tooltipDelay: 100 }
+        };
+
+        var net = new vis.Network(container, data, options);
+        net.once('stabilized', function () {
+            net.fit({ animation: { duration: 700, easingFunction: 'easeInOutQuad' } });
+        });
+    }
+
+    /* vis may still be loading (defer); poll until ready */
+    if (typeof vis !== 'undefined') {
+        initMap();
+    } else {
+        var t = setInterval(function () {
+            if (typeof vis !== 'undefined') { clearInterval(t); initMap(); }
+        }, 50);
+    }
+})();
 </script>
 {% endblock %}

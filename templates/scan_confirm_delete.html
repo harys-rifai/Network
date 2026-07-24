@@ -1,13 +1,55 @@
 {% extends 'base.html' %}
+{% block title %}Confirm Delete — NET-MON{% endblock %}
 
 {% block content %}
-<div class="auth-box">
-    <h1 class="matrix-title">Confirm Delete</h1>
-    <p>Are you sure you want to delete scan record for {{ scan.ip }}?</p>
-    <form method="post" class="hacker-form">
+<div class="page-header">
+    <h1>Delete Scan Record</h1>
+    <a href="{% url 'scan_list' %}" class="btn-small">&larr; Back to Scan List</a>
+</div>
+
+<div class="confirm-box">
+    <div class="confirm-title">⚠ Confirm Deletion</div>
+
+    <div class="confirm-meta">
+        <div style="display:flex;flex-direction:column;gap:0.4rem;">
+            <div style="display:flex;justify-content:space-between;">
+                <span>IP Address</span>
+                <code>{{ scan.ip }}</code>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+                <span>Device</span>
+                <strong>{{ scan.device }}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+                <span>OS</span>
+                <strong>{{ scan.os }}</strong>
+            </div>
+            {% if scan.mac_address %}
+            <div style="display:flex;justify-content:space-between;">
+                <span>MAC</span>
+                <code>{{ scan.mac_address }}</code>
+            </div>
+            {% endif %}
+            <div style="display:flex;justify-content:space-between;">
+                <span>Scanned At</span>
+                <strong>{{ scan.scanned_at|date:"Y-m-d H:i" }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1.25rem;text-align:center;">
+        This action cannot be undone. The scan record will be permanently removed.
+    </p>
+
+    <form method="post">
         {% csrf_token %}
-        <button type="submit" class="btn-primary btn-danger">Delete</button>
-        <a href="{% url 'scan_list' %}" class="btn-small">Cancel</a>
+        <div class="confirm-actions">
+            <a href="{% url 'scan_list' %}" class="btn-small">Cancel</a>
+            <button type="submit" class="btn-small btn-danger"
+                    style="padding:0.35rem 1rem;font-size:0.78rem;">
+                Delete Permanently
+            </button>
+        </div>
     </form>
 </div>
 {% endblock %}

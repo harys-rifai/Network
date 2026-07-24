@@ -1,33 +1,78 @@
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Network Monitor</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>{% block title %}NET-MON{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body class="{% if not user.is_authenticated %}no-nav{% endif %}">
-    <nav class="navbar">
-        <div class="logo">NET-MON</div>
-        <ul class="nav-links">
-            <li><a href="/">Dashboard</a></li>
-            <li><a href="/scan/">Scan Results</a></li>
-            <li><a href="/router-clients/">Router &amp; Clients</a></li>
-            <li><a href="/network-map/">Network Map</a></li>
-            <li><a href="/db-maintenance/">Database</a></li>
-            {% if user.is_authenticated %}
-            <li><form method="post" action="{% url 'logout' %}" class="logout-form">{% csrf_token %}<button type="submit" class="btn-logout">LOGOUT</button></form></li>
-            {% endif %}
-        </ul>
-    </nav>
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
-    <footer class="footer">
-        <p>&copy; {% now "Y" %} Network Monitoring System</p>
-    </footer>
-    {% block extra_js %}{% endblock %}
+
+<nav class="navbar">
+    <a href="{% url 'dashboard' %}" class="logo">NET-MON</a>
+    <ul class="nav-links">
+        <li>
+            <a href="{% url 'dashboard' %}"
+               class="{% if request.resolver_match.url_name == 'dashboard' %}nav-active{% endif %}">
+                Dashboard
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'scan_list' %}"
+               class="{% if request.resolver_match.url_name in 'scan_list,scan_detail,scan_edit,scan_delete,scan_trigger' %}nav-active{% endif %}">
+                Scan Results
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'router_clients' %}"
+               class="{% if request.resolver_match.url_name == 'router_clients' %}nav-active{% endif %}">
+                Router &amp; Clients
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'network_map' %}"
+               class="{% if request.resolver_match.url_name == 'network_map' %}nav-active{% endif %}">
+                Network Map
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'db_maintenance' %}"
+               class="{% if request.resolver_match.url_name == 'db_maintenance' %}nav-active{% endif %}">
+                Database
+            </a>
+        </li>
+        {% if user.is_authenticated %}
+        <li>
+            <form method="post" action="{% url 'logout' %}" class="logout-form">
+                {% csrf_token %}
+                <button type="submit" class="btn-logout">Logout</button>
+            </form>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
+<main class="container">
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+    &copy; {% now "Y" %} Network Monitoring System
+</footer>
+
+<!-- Chart.js loaded on every page (small, cached quickly) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
+        crossorigin="anonymous"></script>
+<!-- vis-network only when __USE_VIS__ flag is set by the page -->
+<script>
+if (window.__USE_VIS__) {
+    var s = document.createElement('script');
+    s.src = 'https://unpkg.com/vis-network/standalone/umd/vis-network.min.js';
+    s.crossOrigin = 'anonymous';
+    document.head.appendChild(s);
+}
+</script>
+{% block extra_js %}{% endblock %}
 </body>
 </html>

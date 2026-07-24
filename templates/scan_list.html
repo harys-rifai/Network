@@ -6,76 +6,98 @@
     <h1>Scan Results</h1>
     <a href="{% url 'scan_trigger' %}" class="btn-primary">+ Run Scan</a>
 </div>
+
+{% if messages %}
+<div class="alert-row">
+    {% for msg in messages %}<div class="alert-card alert-{{ msg.tags }}">{{ msg }}</div>{% endfor %}
+</div>
+{% endif %}
+
 {% if duplicate_ips or duplicate_macs %}
 <div class="alert-row">
     {% if duplicate_ips %}
-    <div class="alert-card alert-warn">Duplicate IP detected: {{ duplicate_ips }} duplicate IP value{{ duplicate_ips|pluralize }}</div>
+    <div class="alert-card alert-warn">
+        ⚠ {{ duplicate_ips }} duplicate IP value{{ duplicate_ips|pluralize }} detected
+    </div>
     {% endif %}
     {% if duplicate_macs %}
-    <div class="alert-card alert-danger">Duplicate MAC detected: {{ duplicate_macs }} duplicate MAC value{{ duplicate_macs|pluralize }}</div>
+    <div class="alert-card alert-danger">
+        ⚠ {{ duplicate_macs }} duplicate MAC value{{ duplicate_macs|pluralize }} detected
+    </div>
     {% endif %}
 </div>
 {% endif %}
-<table class="hacker-table">
-    <thead>
-        <tr>
-            <th>{% sort_url 'ip' 'IP Address' %}</th>
-            <th>{% sort_url 'device' 'Device' %}</th>
-            <th>{% sort_url 'os' 'OS' %}</th>
-            <th>{% sort_url 'brand' 'Brand' %}</th>
-            <th>{% sort_url 'mac_address' 'MAC' %}</th>
-            <th>{% sort_url 'latency_ms' 'Latency' %}</th>
-            <th>Open Ports</th>
-            <th>{% sort_url 'scanned_at' 'Scanned At' %}</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% duplicate_counts 'ip' as ip_counts %}
-        {% duplicate_counts 'mac_address' as mac_counts %}
-        {% for scan in page_obj %}
-        <tr>
-            <td>
-                <a href="{% url 'scan_detail' scan.pk %}">{{ scan.ip }}</a>
-                {% if scan.ip|is_duplicate:ip_counts %}
-                <span class="dup-badge dup-ip">x{{ scan.ip|duplicate_count:ip_counts }}</span>
-                {% endif %}
-            </td>
-            <td>{{ scan.device }}</td>
-            <td>{{ scan.os }}</td>
-            <td>{{ scan.brand }}{% if scan.brand == "Unknown" and scan.mac_address %} <span class="text-muted">({{ scan.mac_address|mac_vendor_from_mac|default:"Unknown Vendor" }})</span>{% endif %}</td>
-            <td>
-                {{ scan.mac_address|default:"—" }}
-                {% if scan.mac_address|is_duplicate:mac_counts %}
-                <span class="dup-badge dup-mac">x{{ scan.mac_address|duplicate_count:mac_counts }}</span>
-                {% endif %}
-            </td>
-            <td>{{ scan.latency_ms|default:"—" }}{% if scan.latency_ms %} ms{% endif %}</td>
-            <td>
-                {% if scan.open_ports %}
-                <div class="port-list">
-                    {% for port in scan.open_ports %}
-                    {% with service=scan.services|get_item:port %}
-                    <span class="port-badge port-{{ port|port_risk|lower }}" title="Port {{ port }}{% if service %} - {{ service }}{% endif %}">
-                        {{ port }}{% if service %} <span style="opacity:0.7">{{ service }}</span>{% endif %}
-                    </span>
-                    {% endwith %}
-                    {% endfor %}
-                </div>
-                {% else %}
-                <span class="text-muted">—</span>
-                {% endif %}
-            </td>
-            <td>{{ scan.scanned_at|date:"Y-m-d H:i" }}</td>
-            <td class="actions">
-                <a href="{% url 'scan_edit' scan.pk %}" class="btn-small">Edit</a>
-                <a href="{% url 'scan_delete' scan.pk %}" class="btn-small btn-danger">Delete</a>
-            </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="9">No scan data. <a href="{% url 'scan_trigger' %}">Trigger a scan</a></td></tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% include 'pagination.html' %}
+
+<div class="table-block">
+    <div class="table-wrapper">
+        <table class="hacker-table">
+            <thead>
+                <tr>
+                    <th>{% sort_url 'ip' 'IP Address' %}</th>
+                    <th>{% sort_url 'device' 'Device' %}</th>
+                    <th>{% sort_url 'os' 'OS' %}</th>
+                    <th>{% sort_url 'brand' 'Brand' %}</th>
+                    <th>{% sort_url 'mac_address' 'MAC' %}</th>
+                    <th>{% sort_url 'latency_ms' 'Latency' %}</th>
+                    <th>Open Ports</th>
+                    <th>{% sort_url 'scanned_at' 'Scanned At' %}</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% duplicate_counts 'ip' as ip_counts %}
+                {% duplicate_counts 'mac_address' as mac_counts %}
+                {% for scan in page_obj %}
+                <tr>
+                    <td>
+                        <a href="{% url 'scan_detail' scan.pk %}">{{ scan.ip }}</a>
+                        {% if scan.ip|is_duplicate:ip_counts %}
+                        <span class="dup-badge dup-ip">×{{ scan.ip|duplicate_count:ip_counts }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ scan.device }}</td>
+                    <td>{{ scan.os }}</td>
+                    <td>
+                        {{ scan.brand|default:"—" }}
+                        {% if scan.brand == "Unknown" and scan.mac_address %}
+                        <span class="text-muted" style="font-size:0.7rem;">({{ scan.mac_address|mac_vendor_from_mac }})</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-family:var(--font-mono);font-size:0.75rem;">
+                        {{ scan.mac_address|default:"—" }}
+                        {% if scan.mac_address|is_duplicate:mac_counts %}
+                        <span class="dup-badge dup-mac">×{{ scan.mac_address|duplicate_count:mac_counts }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{% if scan.latency_ms %}{{ scan.latency_ms }} ms{% else %}—{% endif %}</td>
+                    <td>
+                        {% if scan.open_ports %}
+                        <div class="port-list">
+                            {% for port in scan.open_ports %}
+                            {% with svc=scan.services|get_item:port %}
+                            <span class="port-badge port-{{ port|port_risk|lower }}"
+                                  title="Port {{ port }}{% if svc %} — {{ svc }}{% endif %}">
+                                {{ port }}{% if svc %}&nbsp;<span style="opacity:0.65;font-weight:400;">{{ svc }}</span>{% endif %}
+                            </span>
+                            {% endwith %}
+                            {% endfor %}
+                        </div>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="white-space:nowrap;">{{ scan.scanned_at|date:"Y-m-d H:i" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'scan_edit' scan.pk %}" class="btn-small">Edit</a>
+                        <a href="{% url 'scan_delete' scan.pk %}" class="btn-small btn-danger">Del</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">
+                    No scan data. <a href="{% url 'scan_trigger' %}">Trigger a scan</a>
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include 'pagination.html' %}
+</div>
 {% endblock %}

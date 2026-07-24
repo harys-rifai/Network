@@ -1,19 +1,82 @@
 {% extends 'base.html' %}
+{% block title %}{% if scan %}Edit Device{% else %}New Scan{% endif %} — NET-MON{% endblock %}
 
 {% block content %}
-<div class="auth-box">
-    <h1 class="matrix-title">{% if scan %}Edit Scan{% else %}New Scan{% endif %}</h1>
+<div class="page-header">
+    <h1>{% if scan %}Edit Device — {{ scan.ip }}{% else %}New Scan Record{% endif %}</h1>
+    <a href="{% url 'scan_list' %}" class="btn-small">&larr; Back to Scan List</a>
+</div>
+
+<div class="form-box">
+    <div class="form-box-title">
+        {% if scan %}Edit Scan Record{% else %}New Scan Record{% endif %}
+    </div>
+
+    {% if messages %}
+    <div class="alert-row" style="margin-bottom:1rem;">
+        {% for msg in messages %}
+        <div class="alert-card alert-{{ msg.tags }}">{{ msg }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <form method="post" class="hacker-form">
         {% csrf_token %}
-        <div class="form-group"><label>IP Address</label><input type="text" name="ip" value="{{ scan.ip }}" required></div>
-        <div class="form-group"><label>Device</label><input type="text" name="device" value="{{ scan.device }}" required></div>
-        <div class="form-group"><label>OS</label><input type="text" name="os" value="{{ scan.os }}" required></div>
-        <div class="form-group"><label>Brand</label><input type="text" name="brand" value="{{ scan.brand }}"></div>
-        <div class="form-group"><label>Gateway</label><input type="text" name="gateway" value="{{ scan.gateway }}"></div>
-        <div class="form-group"><label>Router</label><input type="text" name="router" value="{{ scan.router }}"></div>
-        <div class="form-group"><label>DNS</label><input type="text" name="dns" value="{{ scan.dns }}"></div>
-        <button type="submit" class="btn-primary">Save</button>
-        <a href="{% url 'scan_list' %}" class="btn-small">Cancel</a>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="f_ip">IP Address</label>
+                <input type="text" id="f_ip" name="ip"
+                       value="{{ scan.ip|default:'' }}"
+                       placeholder="e.g. 192.168.1.10" required>
+            </div>
+            <div class="form-group">
+                <label for="f_device">Device / Hostname</label>
+                <input type="text" id="f_device" name="device"
+                       value="{{ scan.device|default:'' }}"
+                       placeholder="e.g. PC, Router, Switch" required>
+            </div>
+            <div class="form-group">
+                <label for="f_os">Operating System</label>
+                <input type="text" id="f_os" name="os"
+                       value="{{ scan.os|default:'' }}"
+                       placeholder="e.g. Windows, Linux" required>
+            </div>
+            <div class="form-group">
+                <label for="f_brand">Brand</label>
+                <input type="text" id="f_brand" name="brand"
+                       value="{{ scan.brand|default:'' }}"
+                       placeholder="e.g. Cisco, Apple">
+            </div>
+            <div class="form-group">
+                <label for="f_gateway">Gateway IP</label>
+                <input type="text" id="f_gateway" name="gateway"
+                       value="{{ scan.gateway|default:'' }}"
+                       placeholder="e.g. 192.168.1.1">
+            </div>
+            <div class="form-group">
+                <label for="f_router">Router IP</label>
+                <input type="text" id="f_router" name="router"
+                       value="{{ scan.router|default:'' }}"
+                       placeholder="e.g. 192.168.1.1">
+            </div>
+            <div class="form-group">
+                <label for="f_dns">DNS Server</label>
+                <input type="text" id="f_dns" name="dns"
+                       value="{{ scan.dns|default:'' }}"
+                       placeholder="e.g. 8.8.8.8">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Save Changes</button>
+            <a href="{% url 'scan_list' %}" class="btn-small">Cancel</a>
+            {% if scan %}
+            <a href="{% url 'scan_delete' scan.pk %}"
+               class="btn-small btn-danger" style="margin-left:auto;">
+                Delete Record
+            </a>
+            {% endif %}
+        </div>
     </form>
 </div>
 {% endblock %}

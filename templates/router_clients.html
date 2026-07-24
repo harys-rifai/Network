@@ -7,11 +7,18 @@
     <a href="{% url 'scan_trigger' %}" class="btn-primary">+ Run Scan</a>
 </div>
 
+{% if messages %}
+<div class="alert-row">
+    {% for msg in messages %}<div class="alert-card alert-{{ msg.tags }}">{{ msg }}</div>{% endfor %}
+</div>
+{% endif %}
+
 {% if router %}
 <div class="router-section">
+    <!-- Gateway card -->
     <div class="card router-card">
         <div class="card-header">Router / Gateway</div>
-        <div class="card-body">
+        <div class="card-body" style="font-size:1rem;">
             <div class="router-grid">
                 <div class="router-item">
                     <span class="router-label">IP Address</span>
@@ -35,7 +42,7 @@
                 </div>
                 <div class="router-item">
                     <span class="router-label">Latency</span>
-                    <span class="router-value">{{ router.latency_ms|default:"—" }}{% if router.latency_ms %} ms{% endif %}</span>
+                    <span class="router-value">{% if router.latency_ms %}{{ router.latency_ms }} ms{% else %}—{% endif %}</span>
                 </div>
                 <div class="router-item">
                     <span class="router-label">DNS</span>
@@ -48,15 +55,16 @@
                 {% if router.open_ports %}
                 <div class="router-item router-item--full">
                     <span class="router-label">Open Ports</span>
-                    <span class="router-value">
+                    <div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.25rem;">
                         {% for port in router.open_ports %}
-                        {% with service=router.services|get_item:port %}
-                        <span class="client-port port-{{ port|port_risk|lower }}">
-                            {{ port }}{% if service %}<span class="client-service">{{ service }}</span>{% endif %}
+                        {% with svc=router.services|get_item:port %}
+                        <span class="port-badge port-{{ port|port_risk|lower }}"
+                              title="Port {{ port }}{% if svc %} — {{ svc }}{% endif %}">
+                            {{ port }}{% if svc %}&nbsp;<span style="opacity:0.65;font-weight:400;">{{ svc }}</span>{% endif %}
                         </span>
                         {% endwith %}
                         {% endfor %}
-                    </span>
+                    </div>
                 </div>
                 {% endif %}
                 {% if router.server_info %}
@@ -69,9 +77,10 @@
         </div>
     </div>
 
+    <!-- ISP card -->
     <div class="card isp-card">
         <div class="card-header">ISP &amp; WAN Info</div>
-        <div class="card-body">
+        <div class="card-body" style="font-size:1rem;">
             <div class="router-grid">
                 <div class="router-item">
                     <span class="router-label">Public IP</span>
@@ -115,86 +124,76 @@
 </div>
 {% endif %}
 
+<!-- Client list -->
 <div class="clients-section">
     <div class="summary-row">
         <h2>Client List</h2>
-        <div class="summary-pill"><strong>{{ total_clients }}</strong> device{{ total_clients|pluralize }}</div>
-        {% if router.ip != 'Unknown' %}
-        <div class="summary-pill"><strong>{{ router.ip }}</strong> gateway</div>
+        <div class="summary-pill"><strong>{{ total_clients }}</strong>&nbsp;device{{ total_clients|pluralize }}</div>
+        {% if router and router.ip != 'Unknown' %}
+        <div class="summary-pill">Gateway:&nbsp;<strong>{{ router.ip }}</strong></div>
+        {% endif %}
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="summary-pill">Page&nbsp;<strong>{{ page_obj.number }}</strong>&nbsp;/&nbsp;<strong>{{ page_obj.paginator.num_pages }}</strong></div>
         {% endif %}
     </div>
-    <div class="client-table-wrap">
-        <table class="client-table">
-            <thead>
-                <tr>
-                    <th style="width: 110px;">IP Address</th>
-                    <th style="width: 90px;">Device</th>
-                    <th style="width: 90px;">OS</th>
-                    <th style="width: 80px;">Brand</th>
-                    <th style="width: 125px;">MAC Address</th>
-                    <th style="width: 80px;">Vendor</th>
-                    <th style="width: 70px;">Latency</th>
-                    <th>Open Ports</th>
-                    <th style="width: 100px;">Gateway</th>
-                    <th style="width: 100px;">DNS</th>
-                    <th>ISP Name</th>
-                    <th style="width: 100px;">Public IP</th>
-                    <th style="width: 120px;">Scanned At</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for client in clients %}
-                <tr>
-                    <td class="client-mono">{{ client.ip }}</td>
-                    <td>{{ client.device }}</td>
-                    <td>{{ client.os }}</td>
-                    <td>{{ client.brand }}</td>
-                    <td class="client-mono">{{ client.mac_address }}</td>
-                    <td>{{ client.vendor }}</td>
-                    <td>{{ client.latency_ms }}{% if client.latency_ms != '—' %} ms{% endif %}</td>
-                    <td>
-                        {% if client.open_ports %}
+
+    <div class="table-block">
+        <div class="table-wrapper">
+            <table class="client-table">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Device</th>
+                        <th>OS</th>
+                        <th>Brand</th>
+                        <th>MAC Address</th>
+                        <th>Vendor</th>
+                        <th>Latency</th>
+                        <th>Open Ports</th>
+                        <th>Gateway</th>
+                        <th>DNS</th>
+                        <th>ISP</th>
+                        <th>Public IP</th>
+                        <th>Scanned At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in clients %}
+                    <tr>
+                        <td class="client-mono">{{ client.ip }}</td>
+                        <td>{{ client.device }}</td>
+                        <td>{{ client.os }}</td>
+                        <td>{{ client.brand }}</td>
+                        <td class="client-mono">{{ client.mac_address }}</td>
+                        <td>{{ client.vendor }}</td>
+                        <td>{% if client.latency_ms != '—' %}{{ client.latency_ms }}&thinsp;ms{% else %}—{% endif %}</td>
+                        <td>
+                            {% if client.open_ports %}
                             {% for port in client.open_ports %}
-                            {% with service=client.services|get_item:port %}
-                            <span class="client-port port-{{ port|port_risk|lower }}">
-                                {{ port }}{% if service %}<span class="client-service">{{ service }}</span>{% endif %}
+                            {% with svc=client.services|get_item:port %}
+                            <span class="client-port port-{{ port|port_risk|lower }}"
+                                  title="{{ port }}{% if svc %} — {{ svc }}{% endif %}">
+                                {{ port }}{% if svc %}<span class="client-service">{{ svc }}</span>{% endif %}
                             </span>
                             {% endwith %}
                             {% endfor %}
-                        {% else %}
-                            <span style="color: var(--text-muted); font-size: 0.75rem;">—</span>
-                        {% endif %}
-                    </td>
-                    <td class="client-mono">{{ client.gateway|default:"—" }}</td>
-                    <td class="client-mono">{{ client.dns|default:"—" }}</td>
-                    <td>{{ client.isp_name|default:"—" }}</td>
-                    <td class="client-mono">{{ client.public_ip|default:"—" }}</td>
-                    <td>{{ client.scanned_at|date:"Y-m-d H:i" }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="13" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">No clients found. <a href="{% url 'scan_trigger' %}">Run a scan</a> to discover devices.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% if page_obj.paginator.num_pages > 1 %}
-    <div class="table-pagination">
-        <span class="pagination-info">
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} &nbsp;|&nbsp; {{ page_obj.paginator.count }} device{{ page_obj.paginator.count|pluralize }}
-        </span>
-        <div class="pagination-actions">
-            {% if page_obj.has_previous %}
-                <a href="?page=1" class="btn-pagination">&laquo; First</a>
-                <a href="?page={{ page_obj.previous_page_number }}" class="btn-pagination">&lsaquo; Prev</a>
-            {% endif %}
-            {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}" class="btn-pagination">Next &rsaquo;</a>
-                <a href="?page={{ page_obj.paginator.num_pages }}" class="btn-pagination">Last &raquo;</a>
-            {% endif %}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="client-mono">{{ client.gateway|default:"—" }}</td>
+                        <td class="client-mono">{{ client.dns|default:"—" }}</td>
+                        <td>{{ client.isp_name|default:"—" }}</td>
+                        <td class="client-mono">{{ client.public_ip|default:"—" }}</td>
+                        <td style="white-space:nowrap;">{{ client.scanned_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="13" style="text-align:center;padding:2rem;color:var(--text-muted);">
+                        No clients found. <a href="{% url 'scan_trigger' %}">Run a scan</a> to discover devices.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        {% include 'pagination.html' %}
     </div>
-    {% endif %}
 </div>
 {% endblock %}

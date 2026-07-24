@@ -4,13 +4,25 @@
 {% block content %}
 <div class="page-header">
     <h1>Dashboard</h1>
-    <a href="/scan/add/" class="btn-primary">+ New Scan</a>
+    <a href="{% url 'scan_trigger' %}" class="btn-primary">+ Run Scan</a>
 </div>
+
+{% if messages %}
+<div class="alert-row">
+    {% for msg in messages %}
+    <div class="alert-card alert-{{ msg.tags }}">{{ msg }}</div>
+    {% endfor %}
+</div>
+{% endif %}
 
 <div class="dashboard-grid">
     <div class="card">
         <div class="card-header">Total Devices</div>
         <div class="card-body">{{ total_devices }}</div>
+    </div>
+    <div class="card">
+        <div class="card-header">Unique IPs</div>
+        <div class="card-body">{{ unique_ip_count|default:total_devices }}</div>
     </div>
     <div class="card">
         <div class="card-header">OS Variants</div>
@@ -20,92 +32,75 @@
         <div class="card-header">Brands</div>
         <div class="card-body">{{ brand_stats|length }}</div>
     </div>
-    <div class="card">
-        <div class="card-header">Unique IPs</div>
-        <div class="card-body">{{ unique_ip_count|default:total_devices }}</div>
-    </div>
 </div>
 
 <div class="charts-row">
     <div class="chart-box chart-box--compact">
         <h2>OS Distribution</h2>
-        <div class="chart-wrap">
-            <canvas id="osChart"></canvas>
-        </div>
+        <div class="chart-wrap"><canvas id="osChart"></canvas></div>
     </div>
     <div class="chart-box chart-box--compact">
         <h2>Brand Distribution</h2>
-        <div class="chart-wrap">
-            <canvas id="brandChart"></canvas>
-        </div>
+        <div class="chart-wrap"><canvas id="brandChart"></canvas></div>
     </div>
 </div>
 
 <div class="recent-section">
     <h2>Recent Scans</h2>
-    <table class="hacker-table">
-        <thead>
-            <tr>
-                <th>{% sort_url 'ip' 'IP Address' %}</th>
-                <th>{% sort_url 'device' 'Device' %}</th>
-                <th>{% sort_url 'os' 'OS' %}</th>
-                <th>{% sort_url 'brand' 'Brand' %}</th>
-                <th>{% sort_url 'mac_address' 'MAC Address' %}</th>
-                <th>{% sort_url 'scanned_at' 'Scanned At' %}</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for scan in page_obj %}
-            <tr>
-                <td><a href="{% url 'scan_detail' scan.pk %}">{{ scan.ip }}</a></td>
-                <td>{{ scan.device }}</td>
-                <td>{{ scan.os }}</td>
-                <td>{{ scan.brand }}</td>
-                <td>{{ scan.mac_address|default:"—" }}</td>
-                <td>{{ scan.scanned_at|date:"Y-m-d H:i" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6">No scans yet. <a href="/scan/add/">Run a scan</a></td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% include 'pagination.html' %}
+    <div class="table-block">
+        <div class="table-wrapper">
+            <table class="hacker-table">
+                <thead>
+                    <tr>
+                        <th>{% sort_url 'ip' 'IP Address' %}</th>
+                        <th>{% sort_url 'device' 'Device' %}</th>
+                        <th>{% sort_url 'os' 'OS' %}</th>
+                        <th>{% sort_url 'brand' 'Brand' %}</th>
+                        <th>{% sort_url 'mac_address' 'MAC Address' %}</th>
+                        <th>{% sort_url 'scanned_at' 'Scanned At' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in page_obj %}
+                    <tr>
+                        <td><a href="{% url 'scan_detail' scan.pk %}">{{ scan.ip }}</a></td>
+                        <td>{{ scan.device }}</td>
+                        <td>{{ scan.os }}</td>
+                        <td>{{ scan.brand|default:"—" }}</td>
+                        <td style="font-family:var(--font-mono);font-size:0.75rem;">{{ scan.mac_address|default:"—" }}</td>
+                        <td>{{ scan.scanned_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);">
+                        No scans yet. <a href="{% url 'scan_trigger' %}">Run a scan</a>
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'pagination.html' %}
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-const osCtx = document.getElementById('osChart').getContext('2d');
-new Chart(osCtx, {
+const _chartDefaults = {
+    responsive: true, maintainAspectRatio: false, cutout: '70%',
+    plugins: { legend: { display: true, position: 'bottom',
+        labels: { color: '#9ca3af', padding: 10, boxWidth: 10, font: { size: 10 } } } }
+};
+const _colors = ['#facc15','#22c55e','#eab308','#6366f1','#ef4444','#94a3b8','#64748b','#f97316','#a855f7'];
+
+new Chart(document.getElementById('osChart').getContext('2d'), {
     type: 'doughnut',
-    data: {
-        labels: {{ os_labels|safe }},
-        datasets: [{ data: {{ os_data|safe }}, backgroundColor: ['#facc15','#22c55e','#eab308','#6366f1','#ef4444','#94a3b8','#64748b'] }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '72%',
-        plugins: {
-            legend: { display: true, position: 'bottom', labels: { color: '#9ca3af', padding: 10, boxWidth: 10, font: { size: 10 } } }
-        }
-    }
+    data: { labels: {{ os_labels|safe }}, datasets: [{ data: {{ os_data|safe }}, backgroundColor: _colors }] },
+    options: _chartDefaults,
 });
-const brandCtx = document.getElementById('brandChart').getContext('2d');
-new Chart(brandCtx, {
+new Chart(document.getElementById('brandChart').getContext('2d'), {
     type: 'doughnut',
-    data: {
-        labels: {{ brand_labels|safe }},
-        datasets: [{ data: {{ brand_data|safe }}, backgroundColor: ['#22c55e','#facc15','#eab308','#6366f1','#ef4444','#94a3b8','#64748b'] }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '72%',
-        plugins: {
-            legend: { display: true, position: 'bottom', labels: { color: '#9ca3af', padding: 10, boxWidth: 10, font: { size: 10 } } }
-        }
-    }
+    data: { labels: {{ brand_labels|safe }}, datasets: [{ data: {{ brand_data|safe }}, backgroundColor: [..._colors].reverse() }] },
+    options: _chartDefaults,
 });
 </script>
 {% endblock %}
