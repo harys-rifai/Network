@@ -276,14 +276,19 @@ def router_clients(request):
             'scanned_at': scan.scanned_at,
         })
 
+    page_number = request.GET.get('page', 1)
+    paginator = Paginator(client_list, 10)
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'router_clients.html', {
         'router': router_info,
         'router_isp': router_isp,
         'router_wan': wan_info,
         'public_ip': public_ip or 'Unknown',
-        'clients': client_list,
+        'clients': page_obj.object_list,
         'total_devices': scans.count(),
         'total_clients': len(client_list),
+        'page_obj': page_obj,
     })
 
 
