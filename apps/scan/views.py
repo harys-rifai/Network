@@ -5,6 +5,8 @@ from django.db.models import Count
 from django.core.paginator import Paginator
 from django.core.cache import cache
 import ipaddress
+import time
+from datetime import datetime
 from .models import Scan, ScanPort, ScanMacHistory, IspInfo
 from .scanner import scan_network, get_active_interface, get_public_ip, get_isp_info, PORT_SERVICES
 
@@ -84,14 +86,30 @@ def scan_trigger(request):
 
     last_scanned_subnet = cache.get('last_scanned_subnet')
     network_changed = current_subnet and current_subnet != last_scanned_subnet
+    last_auto_scan = cache.get('last_auto_scan_timestamp')
+    auto_scan_cooldown = 1800
+    can_auto_scan = network_changed and (last_auto_scan is None or (time.time() - float(last_auto_scan)) > auto_scan_cooldown)
 
     if request.method == 'POST':
         subnet = request.POST.get('subnet') or current_subnet
         max_hosts = int(request.POST.get('count', 254))
         try:
-            scan_result = scan_network(subnet=subnet, max_hosts=max_hosts, max_workers=100)
+            scan_result = scan_network(subnet=subnet, max_hosts=max_hosts, max_workers=50)
             results = scan_result[0] if isinstance(scan_result, tuple) else scan_result
             isp_info = scan_result[1] if isinstance(scan_result, tuple) else {}
+        except RuntimeError as e:
+            if 'cannot schedule new futures after interpreter shutdown' in str(e):
+                messages.warning(request, 'Thread pool unavailable, retrying with sequential scan...')
+                try:
+                    scan_result = scan_network(subnet=subnet, max_hosts=max_hosts, max_workers=1)
+                    results = scan_result[0] if isinstance(scan_result, tuple) else scan_result
+                    isp_info = scan_result[1] if isinstance(scan_result, tuple) else {}
+                except Exception as e2:
+                    messages.error(request, f'Scan failed: {str(e2)}')
+                    return redirect('scan_trigger')
+            else:
+                messages.error(request, f'Scan failed: {str(e)}')
+                return redirect('scan_trigger')
         except Exception as e:
             messages.error(request, f'Scan failed: {str(e)}')
             return redirect('scan_trigger')
@@ -171,12 +189,26 @@ def scan_trigger(request):
         messages.success(request, msg)
         return redirect('scan_list')
 
-    if network_changed and current_subnet:
+    if can_auto_scan and current_subnet:
         cache.set('last_scanned_subnet', current_subnet, timeout=None)
+        cache.set('last_auto_scan_timestamp', str(time.time()), timeout=None)
         try:
-            scan_result = scan_network(subnet=current_subnet, max_hosts=254, max_workers=100)
+            scan_result = scan_network(subnet=current_subnet, max_hosts=254, max_workers=50)
             results = scan_result[0] if isinstance(scan_result, tuple) else scan_result
             isp_info = scan_result[1] if isinstance(scan_result, tuple) else {}
+        except RuntimeError as e:
+            if 'cannot schedule new futures after interpreter shutdown' in str(e):
+                messages.warning(request, 'Thread pool unavailable, auto-scan retrying sequentially...')
+                try:
+                    scan_result = scan_network(subnet=current_subnet, max_hosts=254, max_workers=1)
+                    results = scan_result[0] if isinstance(scan_result, tuple) else scan_result
+                    isp_info = scan_result[1] if isinstance(scan_result, tuple) else {}
+                except Exception as e2:
+                    messages.error(request, f'Auto-scan failed: {str(e2)}')
+                    return render(request, 'scan_trigger.html', {'subnet': current_subnet, 'network_changed': True, 'auto_scan_error': str(e2)})
+            else:
+                messages.error(request, f'Auto-scan failed: {str(e)}')
+                return render(request, 'scan_trigger.html', {'subnet': current_subnet, 'network_changed': True, 'auto_scan_error': str(e)})
         except Exception as e:
             messages.error(request, f'Auto-scan failed: {str(e)}')
             return render(request, 'scan_trigger.html', {'subnet': current_subnet, 'network_changed': True, 'auto_scan_error': str(e)})

@@ -14,9 +14,8 @@
         <ul class="nav-links">
             <li><a href="/">Dashboard</a></li>
             <li><a href="/scan/">Scan Results</a></li>
-            <li><a href="/scan/add/">New Scan</a></li>
-            <li><a href="/network-map/">Network Map</a></li>
             <li><a href="/router-clients/">Router &amp; Clients</a></li>
+            <li><a href="/network-map/">Network Map</a></li>
             <li><a href="/db-maintenance/">Database</a></li>
             {% if user.is_authenticated %}
             <li><form method="post" action="{% url 'logout' %}" class="logout-form">{% csrf_token %}<button type="submit" class="btn-logout">LOGOUT</button></form></li>

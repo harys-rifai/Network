@@ -521,7 +521,7 @@ def guess_device_from_fallback(hostname, mac, ttl, brand):
     return 'Active Host'
 
 
-def scan_network(subnet=None, max_hosts=254, max_workers=120):
+def scan_network(subnet=None, max_hosts=254, max_workers=60):
     iface_name, ip_addr, netmask = get_active_interface()
     if not ip_addr or not netmask:
         raise RuntimeError('Could not detect active network interface.')
@@ -538,14 +538,24 @@ def scan_network(subnet=None, max_hosts=254, max_workers=120):
 
     alive_ips = set()
     alive_with_ttl = {}
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(ping_host, ip): ip for ip in hosts}
-        for future in as_completed(futures):
-            ip = futures[future]
-            is_alive, ttl = future.result()
-            if is_alive:
-                alive_ips.add(str(ip))
-                alive_with_ttl[str(ip)] = ttl
+    try:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(ping_host, ip): ip for ip in hosts}
+            for future in as_completed(futures):
+                ip = futures[future]
+                is_alive, ttl = future.result()
+                if is_alive:
+                    alive_ips.add(str(ip))
+                    alive_with_ttl[str(ip)] = ttl
+    except RuntimeError as e:
+        if 'cannot schedule new futures after interpreter shutdown' in str(e):
+            for ip in hosts:
+                is_alive, ttl = ping_host(ip)
+                if is_alive:
+                    alive_ips.add(str(ip))
+                    alive_with_ttl[str(ip)] = ttl
+        else:
+            raise
 
     if not alive_ips:
         public_ip = get_public_ip()
@@ -557,25 +567,39 @@ def scan_network(subnet=None, max_hosts=254, max_workers=120):
     ports = (22, 80, 443, 445, 139, 3389, 53, 5353, 5900, 3306, 5432, 6379, 2375, 9200, 8080, 8443, 1883, 8883, 554, 8000, 9090)
 
     results_map = {}
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        host_futures = {executor.submit(scan_host, ip, ports, arp_cache): ip for ip in hosts}
-        for future in as_completed(host_futures):
-            res = future.result()
-            ip_str = res['ip']
-            if ip_str not in alive_ips:
-                continue
-            results_map[ip_str] = res
+    try:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            host_futures = {executor.submit(scan_host, ip, ports, arp_cache): ip for ip in hosts}
+            for future in as_completed(host_futures):
+                res = future.result()
+                ip_str = res['ip']
+                if ip_str not in alive_ips:
+                    continue
+                results_map[ip_str] = res
 
-        port_futures = {}
-        for ip_str in results_map:
-            for port in ports:
-                port_futures[executor.submit(_probe_port, ip_str, port)] = (ip_str, port)
+            port_futures = {}
+            for ip_str in results_map:
+                for port in ports:
+                    port_futures[executor.submit(_probe_port, ip_str, port)] = (ip_str, port)
 
-        for future in as_completed(port_futures):
-            ip_str, port = port_futures[future]
-            result = future.result()
-            if result is not None:
-                results_map[ip_str]['open_ports'].append(port)
+            for future in as_completed(port_futures):
+                ip_str, port = port_futures[future]
+                result = future.result()
+                if result is not None:
+                    results_map[ip_str]['open_ports'].append(port)
+    except RuntimeError as e:
+        if 'cannot schedule new futures after interpreter shutdown' in str(e):
+            for ip in hosts:
+                res = scan_host(ip, ports, arp_cache)
+                ip_str = res['ip']
+                if ip_str not in alive_ips:
+                    continue
+                results_map[ip_str] = res
+                for port in ports:
+                    if _probe_port(ip_str, port):
+                        results_map[ip_str]['open_ports'].append(port)
+        else:
+            raise
 
     results = []
     for ip_str, res in results_map.items():

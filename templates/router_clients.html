@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-header">
     <h1>Router &amp; Clients</h1>
-    <a href="/scan/add/" class="btn-primary">+ New Scan</a>
+    <a href="{% url 'scan_trigger' %}" class="btn-primary">+ Run Scan</a>
 </div>
 
 {% if router %}
@@ -15,7 +15,7 @@
             <div class="router-grid">
                 <div class="router-item">
                     <span class="router-label">IP Address</span>
-                    <span class="router-value">{{ router.ip }}</span>
+                    <span class="router-value client-mono">{{ router.ip }}</span>
                 </div>
                 <div class="router-item">
                     <span class="router-label">Device</span>
@@ -31,7 +31,7 @@
                 </div>
                 <div class="router-item">
                     <span class="router-label">MAC Address</span>
-                    <span class="router-value">{{ router.mac_address }}</span>
+                    <span class="router-value client-mono">{{ router.mac_address }}</span>
                 </div>
                 <div class="router-item">
                     <span class="router-label">Latency</span>
@@ -39,7 +39,7 @@
                 </div>
                 <div class="router-item">
                     <span class="router-label">DNS</span>
-                    <span class="router-value">{{ router.dns|default:"—" }}</span>
+                    <span class="router-value client-mono">{{ router.dns|default:"—" }}</span>
                 </div>
                 <div class="router-item">
                     <span class="router-label">Scanned At</span>
@@ -50,8 +50,8 @@
                     <span class="router-label">Open Ports</span>
                     <span class="router-value">
                         {% for port in router.open_ports %}
-                        <span class="port-badge port-{{ port|port_risk|lower }}">
-                            {{ port }}{% if router.services|get_item:forloop.counter0 %} {{ router.services|get_item:forloop.counter0 }}{% endif %}
+                        <span class="client-port port-{{ port|port_risk|lower }}">
+                            {{ port }}{% if router.services|get_item:forloop.counter0 %}<span class="client-service">{{ router.services|get_item:forloop.counter0 }}</span>{% endif %}
                         </span>
                         {% endfor %}
                     </span>
@@ -73,7 +73,7 @@
             <div class="router-grid">
                 <div class="router-item">
                     <span class="router-label">Public IP</span>
-                    <span class="router-value">{{ public_ip }}</span>
+                    <span class="router-value client-mono">{{ public_ip }}</span>
                 </div>
                 <div class="router-item">
                     <span class="router-label">ISP</span>
@@ -85,7 +85,7 @@
                 </div>
                 <div class="router-item">
                     <span class="router-label">AS Number</span>
-                    <span class="router-value">{{ router_isp.as }}</span>
+                    <span class="router-value client-mono">{{ router_isp.as }}</span>
                 </div>
                 <div class="router-item">
                     <span class="router-label">Country</span>
@@ -114,102 +114,66 @@
 {% endif %}
 
 <div class="clients-section">
-    <h2>Client List ({{ total_clients }} devices)</h2>
-    <table class="hacker-table">
-        <thead>
-            <tr>
-                <th>IP Address</th>
-                <th>Device</th>
-                <th>OS</th>
-                <th>Brand</th>
-                <th>MAC Address</th>
-                <th>Vendor</th>
-                <th>Latency</th>
-                <th>Open Ports</th>
-                <th>Gateway</th>
-                <th>DNS</th>
-                <th>ISP Name</th>
-                <th>Public IP</th>
-                <th>Scanned At</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for client in clients %}
-            <tr>
-                <td>{{ client.ip }}</td>
-                <td>{{ client.device }}</td>
-                <td>{{ client.os }}</td>
-                <td>{{ client.brand }}</td>
-                <td>{{ client.mac_address }}</td>
-                <td>{{ client.vendor }}</td>
-                <td>{{ client.latency_ms }} ms</td>
-                <td>
-                    {% if client.open_ports %}
-                    <div class="port-list">
-                        {% for port in client.open_ports %}
-                        {% with service=client.services|get_item:forloop.counter0 %}
-                        <span class="port-badge port-{{ port|port_risk|lower }}" title="Port {{ port }}{% if service %} - {{ service }}{% endif %}">
-                            {{ port }}{% if service %} {{ service }}{% endif %}
-                        </span>
-                        {% endwith %}
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <span class="text-muted">—</span>
-                    {% endif %}
-                </td>
-                <td>{{ client.gateway|default:"—" }}</td>
-                <td>{{ client.dns|default:"—" }}</td>
-                <td>{{ client.isp_name|default:"—" }}</td>
-                <td>{{ client.public_ip|default:"—" }}</td>
-                <td>{{ client.scanned_at|date:"Y-m-d H:i" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="13">No clients found. <a href="/scan/add/">Run a scan</a> to discover devices.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="summary-row">
+        <h2>Client List</h2>
+        <div class="summary-pill"><strong>{{ total_clients }}</strong> devices</div>
+        {% if router %}
+        <div class="summary-pill"><strong>{{ router.ip }}</strong> gateway</div>
+        {% endif %}
+    </div>
+    <div class="client-table-wrap">
+        <table class="client-table">
+            <thead>
+                <tr>
+                    <th>IP Address</th>
+                    <th>Device</th>
+                    <th>OS</th>
+                    <th>Brand</th>
+                    <th>MAC Address</th>
+                    <th>Vendor</th>
+                    <th>Latency</th>
+                    <th>Open Ports</th>
+                    <th>Gateway</th>
+                    <th>DNS</th>
+                    <th>ISP Name</th>
+                    <th>Public IP</th>
+                    <th>Scanned At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for client in clients %}
+                <tr>
+                    <td class="client-mono">{{ client.ip }}</td>
+                    <td>{{ client.device }}</td>
+                    <td>{{ client.os }}</td>
+                    <td>{{ client.brand }}</td>
+                    <td class="client-mono">{{ client.mac_address }}</td>
+                    <td>{{ client.vendor }}</td>
+                    <td>{{ client.latency_ms }} ms</td>
+                    <td>
+                        {% if client.open_ports %}
+                            {% for port in client.open_ports %}
+                            <span class="client-port port-{{ port|port_risk|lower }}">
+                                {{ port }}{% with service=client.services|get_item:forloop.counter0 %}{% if service %}<span class="client-service">{{ service }}</span>{% endif %}{% endwith %}
+                            </span>
+                            {% endfor %}
+                        {% else %}
+                            <span style="color: var(--text-muted); font-size: 0.75rem;">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="client-mono">{{ client.gateway|default:"—" }}</td>
+                    <td class="client-mono">{{ client.dns|default:"—" }}</td>
+                    <td>{{ client.isp_name|default:"—" }}</td>
+                    <td class="client-mono">{{ client.public_ip|default:"—" }}</td>
+                    <td>{{ client.scanned_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="13" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">No clients found. <a href="/scan/add/">Run a scan</a> to discover devices.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-{{ block.super }}
-<script>
-const osCtx = document.getElementById('osChart');
-if (osCtx) {
-    new Chart(osCtx, {
-        type: 'doughnut',
-        data: {
-            labels: {{ os_labels|safe }},
-            datasets: [{ data: {{ os_data|safe }}, backgroundColor: ['#facc15','#22c55e','#eab308','#6366f1','#ef4444','#94a3b8','#64748b'] }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '72%',
-            plugins: {
-                legend: { display: true, position: 'bottom', labels: { color: '#9ca3af', padding: 10, boxWidth: 10, font: { size: 10 } } }
-            }
-        }
-    });
-}
-const brandCtx = document.getElementById('brandChart');
-if (brandCtx) {
-    new Chart(brandCtx, {
-        type: 'doughnut',
-        data: {
-            labels: {{ brand_labels|safe }},
-            datasets: [{ data: {{ brand_data|safe }}, backgroundColor: ['#22c55e','#facc15','#eab308','#6366f1','#ef4444','#94a3b8','#64748b'] }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '72%',
-            plugins: {
-                legend: { display: true, position: 'bottom', labels: { color: '#9ca3af', padding: 10, boxWidth: 10, font: { size: 10 } } }
-            }
-        }
-    });
-}
-</script>
 {% endblock %}
