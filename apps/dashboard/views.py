@@ -103,10 +103,18 @@ def network_map(request):
             'color': '#22c55e' if is_gateway else '#facc15',
             'font': {'color': '#e5e7eb', 'size': 12},
         })
+
+        if scan.open_ports:
+            edge_color = {'color': '#3b82f6', 'highlight': '#60a5fa'}
+        elif scan.latency_ms is not None:
+            edge_color = {'color': '#facc15', 'highlight': '#fde047'}
+        else:
+            edge_color = {'color': '#ef4444', 'highlight': '#f87171'}
+
         edges.append({
             'from': scan.id,
             'to': GATEWAY_ID,
-            'color': {'color': '#22c55e', 'highlight': '#facc15'},
+            'color': edge_color,
         })
 
     if gateway_node is None:

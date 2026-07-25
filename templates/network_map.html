@@ -65,24 +65,32 @@
             <h2 style="margin-bottom:0.7rem;text-shadow:0 0 10px rgba(96,165,250,0.2);">Legend</h2>
             <div class="legend-list">
                 <div class="legend-item">
-                    <span class="legend-dot" style="background:#60a5fa;box-shadow:0 0 6px #60a5fa;"></span>
+                    <span class="legend-dot" style="background:#60a5fa;box-shadow:0 0 5px #60a5fa;"></span>
                     <span>ISP / Internet</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-dot" style="background:#22c55e;box-shadow:0 0 6px #22c55e;"></span>
+                    <span class="legend-dot" style="background:#22c55e;box-shadow:0 0 5px #22c55e;"></span>
                     <span>Gateway Router</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-dot" style="background:#facc15;box-shadow:0 0 6px #facc15;"></span>
+                    <span class="legend-dot" style="background:#facc15;box-shadow:0 0 5px #facc15;"></span>
                     <span>Network Device</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-line" style="background:#60a5fa;"></span>
+                    <span class="legend-line" style="background:#3b82f6;"></span>
                     <span>WAN Link</span>
                 </div>
                 <div class="legend-item">
                     <span class="legend-line" style="background:#22c55e;"></span>
                     <span>LAN Link</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-line" style="background:#3b82f6;"></span>
+                    <span>connected</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-line" style="background:#ef4444;"></span>
+                    <span>Lost</span>
                 </div>
             </div>
         </div>
@@ -156,7 +164,7 @@
             },
             edges: {
                 width: 2,
-                color: { color: 'rgba(96,165,250,0.35)', highlight: '#facc15', opacity: 0.9 },
+                color: { color: '#374151', highlight: '#facc15', opacity: 0.9 },
                 shadow: { enabled: true, color: 'rgba(96,165,250,0.2)', size: 8, x: 0, y: 0 },
                 smooth: { type: 'continuous', roundness: 0.5 }
             },

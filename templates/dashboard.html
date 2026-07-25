@@ -16,19 +16,19 @@
 {% endif %}
 
 <div class="dashboard-grid">
-    <div class="card">
+    <div class="card card--total">
         <div class="card-header">Total Devices</div>
         <div class="card-body">{{ total_devices }}</div>
     </div>
-    <div class="card">
+    <div class="card card--unique">
         <div class="card-header">Unique IPs</div>
         <div class="card-body">{{ unique_ip_count|default:total_devices }}</div>
     </div>
-    <div class="card">
+    <div class="card card--os">
         <div class="card-header">OS Variants</div>
         <div class="card-body">{{ os_stats|length }}</div>
     </div>
-    <div class="card">
+    <div class="card card--brands">
         <div class="card-header">Brands</div>
         <div class="card-body">{{ brand_stats|length }}</div>
     </div>

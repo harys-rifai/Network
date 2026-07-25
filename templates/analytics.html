@@ -16,27 +16,27 @@
 
 <!-- Summary Cards -->
 <div class="dashboard-grid" style="margin-bottom:1.25rem;">
-    <div class="card">
+    <div class="card card--traces">
         <div class="card-header">Total Traces</div>
         <div class="card-body">{{ total_traces }}</div>
     </div>
-    <div class="card">
+    <div class="card card--destinations">
         <div class="card-header">Unique Destinations</div>
         <div class="card-body">{{ unique_destinations }}</div>
     </div>
-    <div class="card">
+    <div class="card card--countries">
         <div class="card-header">Countries Reached</div>
         <div class="card-body">{{ unique_countries }}</div>
     </div>
-    <div class="card">
+    <div class="card card--hops">
         <div class="card-header">Total Hops</div>
         <div class="card-body">{{ total_hops }}</div>
     </div>
-    <div class="card">
+    <div class="card card--total">
         <div class="card-header">Devices Scanned</div>
         <div class="card-body">{{ total_devices }}</div>
     </div>
-    <div class="card">
+    <div class="card card--clients">
         <div class="card-header">Router Clients</div>
         <div class="card-body">{{ router_clients_count }}</div>
     </div>
@@ -102,26 +102,25 @@
                 </tbody>
             </table>
         </div>
-    </div>
-    {% if top_destinations.paginator.num_pages > 1 %}
-    <div class="table-pagination" style="padding:0.6rem 0.9rem;">
-        {% if top_destinations.has_previous %}
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page=1" class="btn-page">&laquo;</a>
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ top_destinations.previous_page_number }}" class="btn-page">&lsaquo;&nbsp;Prev</a>
-        {% endif %}
-        {% for p in top_destinations.paginator.page_range %}
-            {% if p == top_destinations.number %}
-                <span class="btn-page active">{{ p }}</span>
-            {% else %}
-                <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ p }}" class="btn-page">{{ p }}</a>
+        {% if top_destinations.paginator.num_pages > 1 %}
+        <div class="table-pagination" style="padding:0.6rem 0.9rem;">
+            {% if top_destinations.has_previous %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page=1" class="btn-page">&laquo;</a>
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ top_destinations.previous_page_number }}" class="btn-page">&lsaquo;&nbsp;Prev</a>
             {% endif %}
-        {% endfor %}
-        {% if top_destinations.has_next %}
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ top_destinations.next_page_number }}" class="btn-page">Next&nbsp;&rsaquo;</a>
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ top_destinations.paginator.num_pages }}" class="btn-page" title="Last page">&raquo;</a>
+            {% for p in top_destinations.paginator.page_range %}
+                {% if p == top_destinations.number %}
+                    <span class="btn-page active">{{ p }}</span>
+                {% else %}
+                    <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ p }}" class="btn-page">{{ p }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if top_destinations.has_next %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ top_destinations.next_page_number }}" class="btn-page">Next&nbsp;&rsaquo;</a>
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ top_destinations.paginator.num_pages }}" class="btn-page" title="Last page">&raquo;</a>
+            {% endif %}
+        </div>
         {% endif %}
-    </div>
-    {% endif %}
     </div>
     <div class="table-block">
         <div class="table-block-header">
@@ -149,26 +148,26 @@
                 </tbody>
             </table>
         </div>
-    </div>
-    {% if top_countries.paginator.num_pages > 1 %}
-    <div class="table-pagination" style="padding:0.6rem 0.9rem;">
-        {% if top_countries.has_previous %}
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page=1" class="btn-page">&laquo;</a>
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ top_countries.previous_page_number }}" class="btn-page">&lsaquo;&nbsp;Prev</a>
-        {% endif %}
-        {% for p in top_countries.paginator.page_range %}
-            {% if p == top_countries.number %}
-                <span class="btn-page active">{{ p }}</span>
-            {% else %}
-                <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ p }}" class="btn-page">{{ p }}</a>
+        {% if top_countries.paginator.num_pages > 1 %}
+        <div class="table-pagination" style="padding:0.6rem 0.9rem;">
+            {% if top_countries.has_previous %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page=1" class="btn-page">&laquo;</a>
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ top_countries.previous_page_number }}" class="btn-page">&lsaquo;&nbsp;Prev</a>
             {% endif %}
-        {% endfor %}
-        {% if top_countries.has_next %}
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ top_countries.next_page_number }}" class="btn-page">Next&nbsp;&rsaquo;</a>
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ top_countries.paginator.num_pages }}" class="btn-page" title="Last page">&raquo;</a>
+            {% for p in top_countries.paginator.page_range %}
+                {% if p == top_countries.number %}
+                    <span class="btn-page active">{{ p }}</span>
+                {% else %}
+                    <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ p }}" class="btn-page">{{ p }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if top_countries.has_next %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ top_countries.next_page_number }}" class="btn-page">Next&nbsp;&rsaquo;</a>
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ top_countries.paginator.num_pages }}" class="btn-page" title="Last page">&raquo;</a>
+            {% endif %}
+        </div>
         {% endif %}
     </div>
-    {% endif %}
 </div>
 
 <!-- Recent Traces -->

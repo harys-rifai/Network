@@ -148,7 +148,7 @@
         </span>
     </div>
     <div style="padding:0.5rem 0.7rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-        <input type="text" id="scanTableSearch" placeholder="Search by IP, device, OS, brand, MAC..."
+        <input type="text" id="scanTableSearch" placeholder="Search by IP, hostname, device, OS, brand, MAC..."
                style="padding:0.4rem 0.7rem;background:var(--bg-root);color:var(--text-primary);border:1px solid var(--border-default);border-radius:var(--radius);font-family:var(--font-mono);font-size:0.8rem;min-width:220px;">
         <span id="scanSearchCount" style="color:var(--text-muted);font-size:0.75rem;"></span>
     </div>
@@ -157,7 +157,7 @@
             <thead>
                 <tr>
                     <th>{% sort_url 'ip' 'IP Address' %}</th>
-                    <th>{% sort_url 'device' 'Device' %}</th>
+                    <th>{% sort_url 'device' 'Hostname / Device Name' %}</th>
                     <th>{% sort_url 'os' 'OS' %}</th>
                     <th>{% sort_url 'brand' 'Brand' %}</th>
                     <th>{% sort_url 'mac_address' 'MAC' %}</th>
