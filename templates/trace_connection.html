@@ -131,6 +131,25 @@
                 </tbody>
             </table>
         </div>
+        {% if recent_traces.paginator.num_pages > 1 %}
+        <div class="table-pagination">
+            {% if recent_traces.has_previous %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'trace_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}trace_page=1" class="btn-page">&laquo;</a>
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'trace_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}trace_page={{ recent_traces.previous_page_number }}" class="btn-page">&lsaquo;&nbsp;Prev</a>
+            {% endif %}
+            {% for p in recent_traces.paginator.page_range %}
+                {% if p == recent_traces.number %}
+                    <span class="btn-page active">{{ p }}</span>
+                {% else %}
+                    <a href="?{% for k,v in request.GET.items %}{% if k != 'trace_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}trace_page={{ p }}" class="btn-page">{{ p }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if recent_traces.has_next %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'trace_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}trace_page={{ recent_traces.next_page_number }}" class="btn-page">Next&nbsp;&rsaquo;</a>
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'trace_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}trace_page={{ recent_traces.paginator.num_pages }}" class="btn-page" title="Last page">&raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -218,6 +237,17 @@
 }
 .hop-row:hover { background: rgba(96,165,250,0.04); }
 </style>
+<div id="traceModal" role="dialog" aria-modal="true">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 id="traceModalTitle">Trace Route</h3>
+            <button class="modal-close" id="traceModalClose" type="button">Close</button>
+        </div>
+        <div class="modal-body" id="traceModalBody">
+            <div style="padding:1rem;color:var(--text-muted);">Running traceroute...</div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -338,30 +368,6 @@
         div.textContent = text;
         return div.innerHTML;
     }
-})();
-</script>
-{% endblock %}
-
-{% block extra_head %}
-<div id="traceModal" role="dialog" aria-modal="true">
-    <div class="modal-box">
-        <div class="modal-header">
-            <h3 id="traceModalTitle">Trace Route</h3>
-            <button class="modal-close" id="traceModalClose" type="button">Close</button>
-        </div>
-        <div class="modal-body" id="traceModalBody">
-            <div style="padding:1rem;color:var(--text-muted);">Running traceroute...</div>
-        </div>
-    </div>
-</div>
-<script>
-(function() {
-    var modal = document.getElementById('traceModal');
-    var closeBtn = document.getElementById('traceModalClose');
-    if (!modal || !closeBtn) return;
-    closeBtn.addEventListener('click', function() {
-        modal.style.display = 'none';
-    });
 })();
 </script>
 {% endblock %}

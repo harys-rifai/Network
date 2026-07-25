@@ -62,7 +62,8 @@ def dashboard(request):
 
 @login_required
 def network_map(request):
-    scans = list(Scan.objects.all())
+    scans_qs = Scan.objects.all()
+    scans = list(scans_qs)
     total = len(scans)
     online = sum(1 for s in scans if s.open_ports)
     gateway_ip = None
@@ -71,15 +72,18 @@ def network_map(request):
             gateway_ip = s.gateway
             break
 
+    device_paginator = Paginator(scans_qs, 20)
+    device_page = device_paginator.get_page(request.GET.get('device_page', 1))
+    device_list = list(device_page.object_list)
+
     ISP_ID = -2
     GATEWAY_ID = -1
 
-    # Build node & edge lists — single pass, no duplicate edges
-    nodes = []   # ISP placeholder filled after cache lookup
+    nodes = []
     edges = []
     gateway_node = None
 
-    for scan in scans:
+    for scan in device_list:
         is_gateway = gateway_ip and str(scan.ip) == str(gateway_ip)
         if is_gateway and gateway_node is None:
             gateway_node = {
@@ -99,14 +103,12 @@ def network_map(request):
             'color': '#22c55e' if is_gateway else '#facc15',
             'font': {'color': '#e5e7eb', 'size': 12},
         })
-        # Every device connects to gateway
         edges.append({
             'from': scan.id,
             'to': GATEWAY_ID,
             'color': {'color': '#22c55e', 'highlight': '#facc15'},
         })
 
-    # Gateway node
     if gateway_node is None:
         gateway_node = {
             'id': GATEWAY_ID,
@@ -119,7 +121,6 @@ def network_map(request):
                      'face': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'},
         }
 
-    # ISP node (filled below after cache)
     isp_node = {
         'id': ISP_ID,
         'label': 'ISP',
@@ -131,10 +132,8 @@ def network_map(request):
                  'face': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'},
     }
 
-    # ISP → Gateway edge (only once)
     edges.append({'from': ISP_ID, 'to': GATEWAY_ID, 'color': {'color': '#60a5fa', 'highlight': '#93c5fd'}})
 
-    # Cache lookups
     public_ip = cache.get('network_public_ip')
     isp_info = cache.get('network_isp_info') or {}
     wan_info = cache.get('network_wan_info') or {}
@@ -148,7 +147,6 @@ def network_map(request):
         wan_info = get_wan_interface_info() or {}
         cache.set('network_wan_info', wan_info, 300)
 
-    # Update ISP node label/title now that we have data
     isp_label = isp_info.get('isp') or isp_info.get('org') or 'ISP'
     isp_title_parts = []
     for key, label in [('isp', 'ISP'), ('org', 'Org'), ('as', 'AS')]:
@@ -172,7 +170,8 @@ def network_map(request):
         'total_devices': total,
         'online_count': online,
         'gateway_ip': gateway_ip or '192.168.1.1',
-        'scans': scans,
+        'scans': device_list,
+        'device_page': device_page,
         'isp_name': isp_info.get('isp') or 'Unknown',
         'isp_org': isp_info.get('org') or 'Unknown',
         'public_ip': public_ip or 'Unknown',
@@ -350,9 +349,18 @@ def analytics(request):
         pass
 
     # Recent traces
-    recent_traces = traces.order_by('-created_at')[:20]
+    recent_traces_qs = traces.order_by('-created_at')
+    recent_trace_paginator = Paginator(recent_traces_qs, 15)
+    recent_trace_page = recent_trace_paginator.get_page(request.GET.get('analytics_trace_page', 1))
 
-    # Prepare chart data
+    # Paginate table data
+    dest_paginator = Paginator(top_destinations, 10)
+    dest_page = dest_paginator.get_page(request.GET.get('dest_page', 1))
+
+    country_paginator = Paginator(top_countries, 10)
+    country_page = country_paginator.get_page(request.GET.get('country_page', 1))
+
+    # Prepare chart data (use full dataset for charts)
     chart_top_dest_labels = json.dumps([item[0] for item in top_destinations])
     chart_top_dest_data = json.dumps([item[1] for item in top_destinations])
     chart_country_labels = json.dumps([item[0] for item in top_countries])
@@ -369,14 +377,14 @@ def analytics(request):
         'router_clients_count': len(router_clients),
         'unique_destinations': len(dest_counter),
         'unique_countries': len(country_counter),
-        'top_destinations': top_destinations,
-        'top_countries': top_countries,
+        'top_destinations': dest_page,
+        'top_countries': country_page,
         'top_orgs': top_orgs,
         'top_dest_ips': top_dest_ips,
         'os_stats': os_stats,
         'brand_stats': brand_stats,
         'device_type_stats': device_type_stats,
-        'recent_traces': recent_traces,
+        'recent_traces': recent_trace_page,
         'chart_top_dest_labels': chart_top_dest_labels,
         'chart_top_dest_data': chart_top_dest_data,
         'chart_country_labels': chart_country_labels,
@@ -450,6 +458,14 @@ def trace_connection(request):
                     status=ConnectionTrace.STATUS_ERROR,
                     error=str(e),
                 )
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'trace_id': trace_id,
+                    'destination': destination,
+                    'destination_ip': dest_ip,
+                    'error': error,
+                })
 
     recent_traces_qs = ConnectionTrace.objects.all()
     recent_paginator = Paginator(recent_traces_qs, 15)

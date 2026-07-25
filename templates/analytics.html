@@ -44,33 +44,25 @@
 
 <!-- Charts Row 1 -->
 <div class="charts-row" style="margin-bottom:1rem;">
-    <div class="chart-box">
+    <div class="chart-box chart-box--compact">
         <h2 style="margin-bottom:0.6rem;">Top Destinations</h2>
-        <div class="chart-wrap">
-            <canvas id="topDestChart"></canvas>
-        </div>
+        <div class="chart-wrap"><canvas id="topDestChart"></canvas></div>
     </div>
-    <div class="chart-box">
+    <div class="chart-box chart-box--compact">
         <h2 style="margin-bottom:0.6rem;">Traffic by Country</h2>
-        <div class="chart-wrap">
-            <canvas id="countryChart"></canvas>
-        </div>
+        <div class="chart-wrap"><canvas id="countryChart"></canvas></div>
     </div>
 </div>
 
 <!-- Charts Row 2 -->
 <div class="charts-row" style="margin-bottom:1rem;">
-    <div class="chart-box">
+    <div class="chart-box chart-box--compact">
         <h2 style="margin-bottom:0.6rem;">Device Types</h2>
-        <div class="chart-wrap">
-            <canvas id="deviceChart"></canvas>
-        </div>
+        <div class="chart-wrap"><canvas id="deviceChart"></canvas></div>
     </div>
-    <div class="chart-box">
+    <div class="chart-box chart-box--compact">
         <h2 style="margin-bottom:0.6rem;">Operating Systems</h2>
-        <div class="chart-wrap">
-            <canvas id="osChart"></canvas>
-        </div>
+        <div class="chart-wrap"><canvas id="osChart"></canvas></div>
     </div>
 </div>
 
@@ -111,6 +103,26 @@
             </table>
         </div>
     </div>
+    {% if top_destinations.paginator.num_pages > 1 %}
+    <div class="table-pagination" style="padding:0.6rem 0.9rem;">
+        {% if top_destinations.has_previous %}
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page=1" class="btn-page">&laquo;</a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ top_destinations.previous_page_number }}" class="btn-page">&lsaquo;&nbsp;Prev</a>
+        {% endif %}
+        {% for p in top_destinations.paginator.page_range %}
+            {% if p == top_destinations.number %}
+                <span class="btn-page active">{{ p }}</span>
+            {% else %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ p }}" class="btn-page">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if top_destinations.has_next %}
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ top_destinations.next_page_number }}" class="btn-page">Next&nbsp;&rsaquo;</a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'dest_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}dest_page={{ top_destinations.paginator.num_pages }}" class="btn-page" title="Last page">&raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    </div>
     <div class="table-block">
         <div class="table-block-header">
             <h2>Top Countries</h2>
@@ -138,6 +150,25 @@
             </table>
         </div>
     </div>
+    {% if top_countries.paginator.num_pages > 1 %}
+    <div class="table-pagination" style="padding:0.6rem 0.9rem;">
+        {% if top_countries.has_previous %}
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page=1" class="btn-page">&laquo;</a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ top_countries.previous_page_number }}" class="btn-page">&lsaquo;&nbsp;Prev</a>
+        {% endif %}
+        {% for p in top_countries.paginator.page_range %}
+            {% if p == top_countries.number %}
+                <span class="btn-page active">{{ p }}</span>
+            {% else %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ p }}" class="btn-page">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if top_countries.has_next %}
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ top_countries.next_page_number }}" class="btn-page">Next&nbsp;&rsaquo;</a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'country_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}country_page={{ top_countries.paginator.num_pages }}" class="btn-page" title="Last page">&raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
 <!-- Recent Traces -->
@@ -169,6 +200,25 @@
             </tbody>
         </table>
     </div>
+    {% if recent_traces.paginator.num_pages > 1 %}
+    <div class="table-pagination" style="padding:0.6rem 0.9rem;">
+        {% if recent_traces.has_previous %}
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'analytics_trace_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}analytics_trace_page=1" class="btn-page">&laquo;</a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'analytics_trace_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}analytics_trace_page={{ recent_traces.previous_page_number }}" class="btn-page">&lsaquo;&nbsp;Prev</a>
+        {% endif %}
+        {% for p in recent_traces.paginator.page_range %}
+            {% if p == recent_traces.number %}
+                <span class="btn-page active">{{ p }}</span>
+            {% else %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'analytics_trace_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}analytics_trace_page={{ p }}" class="btn-page">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if recent_traces.has_next %}
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'analytics_trace_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}analytics_trace_page={{ recent_traces.next_page_number }}" class="btn-page">Next&nbsp;&rsaquo;</a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'analytics_trace_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}analytics_trace_page={{ recent_traces.paginator.num_pages }}" class="btn-page" title="Last page">&raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
@@ -200,10 +250,11 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: { duration: 900, easing: 'easeOutQuart' },
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { ticks: { color: chartDefaults.color, font: chartDefaults.font, maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.04)' } },
-                    y: { ticks: { color: chartDefaults.color, font: chartDefaults.font, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+                    x: { ticks: { color: '#9ca3af', font: { size: 10, family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" }, maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: { ticks: { color: '#9ca3af', font: { size: 10, family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
                 }
             }
         });
@@ -213,9 +264,8 @@
         var ctx = document.getElementById(id);
         if (!ctx) return;
         var colors = [
-            '#facc15','#22c55e','#60a5fa','#f97316','#a855f7',
-            '#ef4444','#14b8a6','#f43f5e','#3b82f6','#eab308',
-            '#10b981','#6366f1','#ec4899','#84cc16','#06b6d4'
+            '#facc15','#22c55e','#eab308','#6366f1','#ef4444','#94a3b8','#64748b','#f97316','#a855f7',
+            '#10b981','#ec4899','#84cc16','#06b6d4','#f43f5e','#3b82f6'
         ];
         new Chart(ctx, {
             type: 'doughnut',
@@ -231,8 +281,10 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                cutout: '70%',
+                animation: { duration: 900, easing: 'easeOutQuart' },
                 plugins: {
-                    legend: { position: 'right', labels: { color: chartDefaults.color, font: chartDefaults.font, padding: 12, boxWidth: 12 } }
+                    legend: { position: 'bottom', labels: { color: '#9ca3af', padding: 10, boxWidth: 10, font: { size: 10 } } }
                 }
             }
         });

@@ -91,9 +91,22 @@
 {% block extra_js %}
 <script>
 const _chartDefaults = {
-    responsive: true, maintainAspectRatio: false, cutout: '70%',
-    plugins: { legend: { display: true, position: 'bottom',
-        labels: { color: '#9ca3af', padding: 10, boxWidth: 10, font: { size: 10 } } } }
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '70%',
+    animation: { duration: 900, easing: 'easeOutQuart' },
+    plugins: {
+        legend: {
+            display: true,
+            position: 'bottom',
+            labels: {
+                color: '#9ca3af',
+                padding: 10,
+                boxWidth: 10,
+                font: { size: 10 }
+            }
+        }
+    }
 };
 const _colors = ['#facc15','#22c55e','#eab308','#6366f1','#ef4444','#94a3b8','#64748b','#f97316','#a855f7'];
 

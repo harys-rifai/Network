@@ -106,6 +106,25 @@
                 <p class="note">No scan data available.</p>
                 {% endfor %}
             </div>
+            {% if device_page.paginator.num_pages > 1 %}
+            <div class="table-pagination" style="margin-top:0.6rem;">
+                {% if device_page.has_previous %}
+                    <a href="?{% for k,v in request.GET.items %}{% if k != 'device_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}device_page=1" class="btn-page">&laquo;</a>
+                    <a href="?{% for k,v in request.GET.items %}{% if k != 'device_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}device_page={{ device_page.previous_page_number }}" class="btn-page">&lsaquo;&nbsp;Prev</a>
+                {% endif %}
+                {% for p in device_page.paginator.page_range %}
+                    {% if p == device_page.number %}
+                        <span class="btn-page active">{{ p }}</span>
+                    {% else %}
+                        <a href="?{% for k,v in request.GET.items %}{% if k != 'device_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}device_page={{ p }}" class="btn-page">{{ p }}</a>
+                    {% endif %}
+                {% endfor %}
+                {% if device_page.has_next %}
+                    <a href="?{% for k,v in request.GET.items %}{% if k != 'device_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}device_page={{ device_page.next_page_number }}" class="btn-page">Next&nbsp;&rsaquo;</a>
+                    <a href="?{% for k,v in request.GET.items %}{% if k != 'device_page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}device_page={{ device_page.paginator.num_pages }}" class="btn-page" title="Last page">&raquo;</a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
     </div><!-- /network-side -->

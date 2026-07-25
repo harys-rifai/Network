@@ -138,8 +138,17 @@ def scan_list(request):
     client_list = []
     for scan in client_page.object_list:
         mac = scan.mac_address
+        hostname = scan.device or scan.ip
+        try:
+            import socket
+            resolved = socket.gethostbyaddr(str(scan.ip))[0]
+            if resolved and resolved != scan.ip:
+                hostname = resolved
+        except Exception:
+            pass
         client_list.append({
             'ip': scan.ip,
+            'hostname': hostname,
             'device': scan.device,
             'os': scan.os,
             'brand': scan.brand or 'Unknown',
