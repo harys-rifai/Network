@@ -46,8 +46,13 @@
 </div>
 
 <div class="recent-section">
-    <h2>Recent Scans</h2>
     <div class="table-block">
+        <div class="table-block-header">
+            <h2>Recent Scans</h2>
+            <span class="pag-info" style="font-size:0.74rem;">
+                {{ page_obj.paginator.count }} device{{ page_obj.paginator.count|pluralize }}
+            </span>
+        </div>
         <div class="table-wrapper">
             <table class="hacker-table">
                 <thead>

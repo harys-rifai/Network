@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+{% load scan_extras %}
+{% block title %}Analytics — NET-MON{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Analytics</h1>
+    <a href="{% url 'trace_connection' %}" class="btn-primary">+ New Trace</a>
+</div>
+
+{% if messages %}
+<div class="alert-row">
+    {% for msg in messages %}<div class="alert-card alert-{{ msg.tags }}">{{ msg }}</div>{% endfor %}
+</div>
+{% endif %}
+
+<!-- Summary Cards -->
+<div class="dashboard-grid" style="margin-bottom:1.25rem;">
+    <div class="card">
+        <div class="card-header">Total Traces</div>
+        <div class="card-body">{{ total_traces }}</div>
+    </div>
+    <div class="card">
+        <div class="card-header">Unique Destinations</div>
+        <div class="card-body">{{ unique_destinations }}</div>
+    </div>
+    <div class="card">
+        <div class="card-header">Countries Reached</div>
+        <div class="card-body">{{ unique_countries }}</div>
+    </div>
+    <div class="card">
+        <div class="card-header">Total Hops</div>
+        <div class="card-body">{{ total_hops }}</div>
+    </div>
+    <div class="card">
+        <div class="card-header">Devices Scanned</div>
+        <div class="card-body">{{ total_devices }}</div>
+    </div>
+    <div class="card">
+        <div class="card-header">Router Clients</div>
+        <div class="card-body">{{ router_clients_count }}</div>
+    </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="charts-row" style="margin-bottom:1rem;">
+    <div class="chart-box">
+        <h2 style="margin-bottom:0.6rem;">Top Destinations</h2>
+        <div class="chart-wrap">
+            <canvas id="topDestChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-box">
+        <h2 style="margin-bottom:0.6rem;">Traffic by Country</h2>
+        <div class="chart-wrap">
+            <canvas id="countryChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="charts-row" style="margin-bottom:1rem;">
+    <div class="chart-box">
+        <h2 style="margin-bottom:0.6rem;">Device Types</h2>
+        <div class="chart-wrap">
+            <canvas id="deviceChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-box">
+        <h2 style="margin-bottom:0.6rem;">Operating Systems</h2>
+        <div class="chart-wrap">
+            <canvas id="osChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Top Tables -->
+<div class="charts-row" style="margin-bottom:1rem;">
+    <div class="table-block">
+        <div class="table-block-header">
+            <h2>Top Destinations</h2>
+        </div>
+        <div class="table-wrapper">
+            <table class="hacker-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Destination</th>
+                        <th>Resolved IP</th>
+                        <th>Traces</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dest, count in top_destinations %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="client-mono">{{ dest }}</td>
+                        <td class="client-mono">
+                            {% for ip, ip_count in top_dest_ips %}
+                                {% if forloop.counter0 == forloop.parentloop.counter0 %}
+                                    {{ ip }}
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td><strong>{{ count }}</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);">No trace data yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="table-block">
+        <div class="table-block-header">
+            <h2>Top Countries</h2>
+        </div>
+        <div class="table-wrapper">
+            <table class="hacker-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Country</th>
+                        <th>Hops</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for country, count in top_countries %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ country }}</td>
+                        <td><strong>{{ count }}</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--text-muted);">No country data yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Traces -->
+<div class="table-block" style="margin-top:0.75rem;">
+    <div class="table-block-header">
+        <h2>Recent Traces</h2>
+    </div>
+    <div class="table-wrapper">
+        <table class="hacker-table">
+            <thead>
+                <tr>
+                    <th>Destination</th>
+                    <th>Resolved IP</th>
+                    <th>Hops</th>
+                    <th>Traced At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trace in recent_traces %}
+                <tr>
+                    <td class="client-mono">{{ trace.destination }}</td>
+                    <td class="client-mono">{{ trace.destination_ip|default:"—" }}</td>
+                    <td>{% if trace.hops %}{{ trace.hops|length }}{% else %}0{% endif %}</td>
+                    <td style="white-space:nowrap;">{{ trace.created_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);">No traces yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var chartDefaults = {
+        color: '#e5e7eb',
+        borderColor: '#374151',
+        font: { family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" }
+    };
+
+    function createBarChart(id, labels, data, label) {
+        var ctx = document.getElementById(id);
+        if (!ctx) return;
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: label,
+                    data: data,
+                    backgroundColor: 'rgba(250,204,21,0.25)',
+                    borderColor: '#facc15',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: chartDefaults.color, font: chartDefaults.font, maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: { ticks: { color: chartDefaults.color, font: chartDefaults.font, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function createDoughnutChart(id, labels, data) {
+        var ctx = document.getElementById(id);
+        if (!ctx) return;
+        var colors = [
+            '#facc15','#22c55e','#60a5fa','#f97316','#a855f7',
+            '#ef4444','#14b8a6','#f43f5e','#3b82f6','#eab308',
+            '#10b981','#6366f1','#ec4899','#84cc16','#06b6d4'
+        ];
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors.slice(0, labels.length),
+                    borderColor: '#0f172a',
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { color: chartDefaults.color, font: chartDefaults.font, padding: 12, boxWidth: 12 } }
+                }
+            }
+        });
+    }
+
+    if (typeof Chart !== 'undefined') {
+        createBarChart('topDestChart', {{ chart_top_dest_labels|safe }}, {{ chart_top_dest_data|safe }}, 'Traces');
+        createDoughnutChart('countryChart', {{ chart_country_labels|safe }}, {{ chart_country_data|safe }});
+        createBarChart('deviceChart', {{ chart_brand_labels|safe }}, {{ chart_brand_data|safe }}, 'Devices');
+        createDoughnutChart('osChart', {{ chart_os_labels|safe }}, {{ chart_os_data|safe }});
+    } else {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js';
+        s.crossOrigin = 'anonymous';
+        s.onload = function () {
+            createBarChart('topDestChart', {{ chart_top_dest_labels|safe }}, {{ chart_top_dest_data|safe }}, 'Traces');
+            createDoughnutChart('countryChart', {{ chart_country_labels|safe }}, {{ chart_country_data|safe }});
+            createBarChart('deviceChart', {{ chart_brand_labels|safe }}, {{ chart_brand_data|safe }}, 'Devices');
+            createDoughnutChart('osChart', {{ chart_os_labels|safe }}, {{ chart_os_data|safe }});
+        };
+        document.head.appendChild(s);
+    }
+})();
+</script>
+{% endblock %}

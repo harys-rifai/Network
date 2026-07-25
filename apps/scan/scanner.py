@@ -896,3 +896,280 @@ def _get_wan_interface_info_windows():
     except Exception:
         pass
     return {}
+
+
+def trace_route(destination, max_hops=30):
+    import platform
+    system = platform.system().lower()
+    try:
+        if system == 'windows':
+            return _trace_route_windows(destination, max_hops)
+        else:
+            return _trace_route_unix(destination, max_hops)
+    except Exception as e:
+        return {'error': str(e), 'hops': []}
+
+
+def _trace_route_windows(destination, max_hops):
+    try:
+        out = subprocess.check_output(
+            ['tracert', '-d', '-h', str(max_hops), '-w', '3000', destination],
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        return {'error': 'Trace timed out', 'hops': []}
+    except Exception as e:
+        return {'error': str(e), 'hops': []}
+
+    hops = []
+    lines = out.splitlines()
+    for line in lines:
+        line = line.strip()
+        if not line or 'Trace complete' in line or 'Tracing route' in line:
+            continue
+        parts = line.split()
+        if len(parts) >= 3 and parts[0].isdigit():
+            hop_num = int(parts[0])
+            ip = None
+            latency = None
+            for p in parts[1:]:
+                p = p.strip()
+                if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', p):
+                    ip = p
+                if 'ms' in p or p.replace('.', '', 1).isdigit():
+                    try:
+                        latency = float(p.replace('ms', '').strip())
+                        break
+                    except Exception:
+                        pass
+            if ip:
+                geo = _get_hop_geolocation(ip)
+                hops.append({
+                    'hop': hop_num,
+                    'ip': ip,
+                    'latency_ms': latency,
+                    'country': geo.get('country'),
+                    'region': geo.get('region'),
+                    'city': geo.get('city'),
+                    'org': geo.get('org'),
+                })
+    return {'destination': destination, 'hops': hops}
+
+
+def _trace_route_unix(destination, max_hops):
+    try:
+        out = subprocess.check_output(
+            ['traceroute', '-n', '-m', str(max_hops), '-w', '3', destination],
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        return {'error': 'Trace timed out', 'hops': []}
+    except Exception as e:
+        return {'error': str(e), 'hops': []}
+
+    hops = []
+    lines = out.splitlines()
+    for line in lines:
+        line = line.strip()
+        if not line or 'traceroute to' in line:
+            continue
+        parts = line.split()
+        if len(parts) >= 2 and parts[0].isdigit():
+            hop_num = int(parts[0])
+            ip = None
+            latency = None
+            for p in parts[1:]:
+                p = p.strip()
+                if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', p):
+                    ip = p
+                if 'ms' in p:
+                    try:
+                        latency = float(p.replace('ms', '').strip())
+                    except Exception:
+                        pass
+            if ip:
+                geo = _get_hop_geolocation(ip)
+                hops.append({
+                    'hop': hop_num,
+                    'ip': ip,
+                    'latency_ms': latency,
+                    'country': geo.get('country'),
+                    'region': geo.get('region'),
+                    'city': geo.get('city'),
+                    'org': geo.get('org'),
+                })
+    return {'destination': destination, 'hops': hops}
+
+
+def _get_hop_geolocation(ip):
+    if ip in ('*', '') or ip.startswith('192.168.') or ip.startswith('10.') or ip.startswith('172.'):
+        return {'country': 'Local', 'region': 'LAN', 'city': 'Private', 'org': ''}
+    try:
+        out = subprocess.check_output(
+            ['curl', '-s', '--max-time', '2', '-A', 'Mozilla/5.0', f'https://ip-api.com/json/{ip}?fields=status,country,regionName,city,isp,org,message'],
+            text=True, timeout=4,
+        )
+        data = json.loads(out)
+        if data.get('status') == 'success':
+            return {
+                'country': data.get('country'),
+                'region': data.get('regionName'),
+                'city': data.get('city'),
+                'org': data.get('org') or data.get('isp'),
+            }
+    except Exception:
+        pass
+    try:
+        out = subprocess.check_output(
+            ['curl', '-s', '--max-time', '2', '-A', 'Mozilla/5.0', f'https://freeipapi.com/api/json/{ip}'],
+            text=True, timeout=4,
+        )
+        data = json.loads(out)
+        return {
+            'country': data.get('countryName'),
+            'region': data.get('regionName'),
+            'city': data.get('cityName'),
+            'org': data.get('asnOrganization'),
+        }
+    except Exception:
+        pass
+    return {'country': 'Unknown', 'region': '', 'city': '', 'org': ''}
+
+
+def get_router_clients():
+    """Fetch connected clients from Tenda router (if configured)."""
+    try:
+        from django.conf import settings
+        if not getattr(settings, 'ROUTER_ENABLED', False):
+            return []
+        host = getattr(settings, 'ROUTER_HOST', '')
+        username = getattr(settings, 'ROUTER_USERNAME', '')
+        password = getattr(settings, 'ROUTER_PASSWORD', '')
+        if not host or not username or not password:
+            return []
+    except Exception:
+        return []
+
+    base = f"http://{host}"
+    session = None
+    try:
+        import requests
+        session = requests.Session()
+        session.verify = False
+        login_payload = {"username": username, "password": password}
+        try:
+            login_resp = session.post(f"{base}/login", json=login_payload, timeout=5)
+            if login_resp.status_code != 200:
+                login_resp = session.post(f"{base}/goform/login", json=login_payload, timeout=5)
+        except Exception:
+            pass
+
+        clients = []
+
+        wifi_endpoints = [
+            '/goform/getWifiStation',
+            '/data/assoc_list.json',
+            '/status/status_wlan.asp',
+            '/goform/getWlanStationList',
+        ]
+        for ep in wifi_endpoints:
+            try:
+                resp = session.get(f"{base}{ep}", timeout=5)
+                if resp.status_code == 200:
+                    text = resp.text.strip()
+                    if text.startswith('{') or text.startswith('['):
+                        data = json.loads(text)
+                        parsed = _parse_tenda_wifi_json(data)
+                        if parsed:
+                            clients.extend(parsed)
+                            break
+            except Exception:
+                continue
+
+        lan_endpoints = [
+            '/goform/getLanClientList',
+            '/data/lan_client_list.json',
+            '/status/status_lan.asp',
+        ]
+        for ep in lan_endpoints:
+            try:
+                resp = session.get(f"{base}{ep}", timeout=5)
+                if resp.status_code == 200:
+                    text = resp.text.strip()
+                    if text.startswith('{') or text.startswith('['):
+                        data = json.loads(text)
+                        parsed = _parse_tenda_lan_json(data)
+                        if parsed:
+                            clients.extend(parsed)
+                            break
+            except Exception:
+                continue
+
+        seen = set()
+        unique = []
+        for c in clients:
+            key = c.get('ip') or c.get('mac') or ''
+            if key and key not in seen:
+                seen.add(key)
+                unique.append(c)
+        return unique
+    except Exception:
+        return []
+    finally:
+        if session:
+            try:
+                session.close()
+            except Exception:
+                pass
+
+
+def _parse_tenda_wifi_json(data):
+    """Parse common Tenda WiFi station JSON formats."""
+    clients = []
+    try:
+        if isinstance(data, dict):
+            data = [data]
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            mac = item.get('mac') or item.get('MAC') or item.get('mac_addr') or ''
+            ip = item.get('ip') or item.get('IP') or item.get('ip_addr') or ''
+            hostname = item.get('hostname') or item.get('host_name') or item.get('name') or ''
+            if mac or ip:
+                clients.append({
+                    'ip': ip,
+                    'mac_address': mac.replace('-', ':').upper() if mac else '',
+                    'device': hostname or 'WiFi Client',
+                    'interface': 'WiFi',
+                })
+    except Exception:
+        pass
+    return clients
+
+
+def _parse_tenda_lan_json(data):
+    """Parse common Tenda LAN client JSON formats."""
+    clients = []
+    try:
+        if isinstance(data, dict):
+            data = [data]
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            mac = item.get('mac') or item.get('MAC') or item.get('mac_addr') or ''
+            ip = item.get('ip') or item.get('IP') or item.get('ip_addr') or ''
+            hostname = item.get('hostname') or item.get('host_name') or item.get('name') or ''
+            if mac or ip:
+                clients.append({
+                    'ip': ip,
+                    'mac_address': mac.replace('-', ':').upper() if mac else '',
+                    'device': hostname or 'LAN Client',
+                    'interface': 'LAN',
+                })
+    except Exception:
+        pass
+    return clients

@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% block title %}Connection Trace — NET-MON{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Connection Trace</h1>
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+        <form method="post" class="search-form" style="display:flex;gap:0.4rem;align-items:center;">
+            {% csrf_token %}
+            <input type="text" name="destination" value="{{ destination|default:'' }}" placeholder="Enter domain or IP (e.g. google.com)" class="search-input" required>
+            <button type="submit" class="btn-primary" style="padding:0.45rem 0.9rem;">Trace Route</button>
+        </form>
+    </div>
+</div>
+
+{% if messages %}
+<div class="alert-row">
+    {% for msg in messages %}<div class="alert-card alert-{{ msg.tags }}">{{ msg }}</div>{% endfor %}
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert-row">
+    <div class="alert-card alert-danger">{{ error }}</div>
+</div>
+{% endif %}
+
+{% if result and result.hops %}
+<div class="trace-section">
+    <div class="trace-header">
+        <div class="trace-title">Trace to <strong>{{ destination }}</strong></div>
+        <div class="trace-meta">
+            {% if dest_ip %}<span class="trace-pill">Resolved: {{ dest_ip }}</span>{% endif %}
+            <span class="trace-pill">{{ result.hops|length }} hops</span>
+        </div>
+    </div>
+    <div class="table-block">
+        <div class="table-wrapper">
+            <table class="client-table">
+                <thead>
+                    <tr>
+                        <th style="width:5%;">Hop</th>
+                        <th style="width:15%;">IP Address</th>
+                        <th style="width:10%;">Latency</th>
+                        <th>Country</th>
+                        <th>Region</th>
+                        <th>City</th>
+                        <th>Organization</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for hop in result.hops %}
+                    <tr>
+                        <td style="text-align:center;font-weight:700;">{{ hop.hop }}</td>
+                        <td class="client-mono">{{ hop.ip }}</td>
+                        <td>{% if hop.latency_ms %}{{ hop.latency_ms }} ms{% else %}—{% endif %}</td>
+                        <td>{{ hop.country|default:"—" }}</td>
+                        <td>{{ hop.region|default:"—" }}</td>
+                        <td>{{ hop.city|default:"—" }}</td>
+                        <td>{{ hop.org|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if router_clients %}
+<div class="trace-section">
+    <div class="trace-header">
+        <div class="trace-title">Active Connections from Router</div>
+        <div class="trace-meta">
+            <span class="trace-pill">{{ router_clients|length }} client{{ router_clients|length|pluralize }}</span>
+        </div>
+    </div>
+    <div class="table-block">
+        <div class="table-wrapper">
+            <table class="client-table">
+                <thead>
+                    <tr>
+                        <th style="width:15%;">IP Address</th>
+                        <th style="width:15%;">MAC Address</th>
+                        <th>Device</th>
+                        <th>Interface</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in router_clients %}
+                    <tr>
+                        <td class="client-mono">{{ client.ip }}</td>
+                        <td class="client-mono">{{ client.mac_address|default:"—" }}</td>
+                        <td>{{ client.device|default:"—" }}</td>
+                        <td>{{ client.interface|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="trace-history">
+    <h2 style="margin-bottom:0.75rem;font-size:0.9rem;font-weight:700;color:var(--text-primary);">Recent Traces</h2>
+    <div class="table-block">
+        <div class="table-wrapper">
+            <table class="client-table">
+                <thead>
+                    <tr>
+                        <th>Destination</th>
+                        <th>Resolved IP</th>
+                        <th>Hops</th>
+                        <th>Traced At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trace in recent_traces %}
+                    <tr>
+                        <td class="client-mono">{{ trace.destination }}</td>
+                        <td class="client-mono">{{ trace.destination_ip|default:"—" }}</td>
+                        <td>{% if trace.hops %}{{ trace.hops|length }}{% else %}0{% endif %}</td>
+                        <td style="white-space:nowrap;">{{ trace.created_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);">
+                        No traces yet. Enter a destination above to start tracing.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+.trace-section { margin-bottom: 1.25rem; }
+.trace-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 0.6rem; gap: 0.5rem; flex-wrap: wrap;
+}
+.trace-title { color: var(--text-primary); font-size: 0.9rem; font-weight: 600; }
+.trace-title strong { color: var(--accent); }
+.trace-meta { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.trace-pill {
+    padding: 0.18rem 0.55rem; border-radius: 9999px;
+    border: 1px solid var(--border-strong); font-size: 0.68rem; font-weight: 600;
+    color: var(--text-secondary); background: rgba(255,255,255,0.03);
+}
+.trace-history { margin-top: 0.5rem; }
+</style>
+{% endblock %}

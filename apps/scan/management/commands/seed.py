@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from apps.scan.models import Scan, ScanPort, ScanMacHistory, OuiVendor, PortService
+from apps.scan.models import Scan, ScanPort, ScanMacHistory, OuiVendor, PortService, ConnectionTrace
 from apps.dashboard.models import DbMaintenance
 
 User = get_user_model()
@@ -400,6 +400,31 @@ class Command(BaseCommand):
             seeded = True
         else:
             self.stdout.write(self.style.NOTICE('PortService records already exist, skipping.'))
+
+        if not ConnectionTrace.objects.exists():
+            ConnectionTrace.objects.bulk_create([
+                ConnectionTrace(
+                    destination='google.com',
+                    destination_ip='142.250.190.46',
+                    hops=[
+                        {'hop': 1, 'ip': '192.168.1.1', 'latency_ms': 1.0, 'country': 'Local', 'region': 'LAN', 'city': 'Private', 'org': ''},
+                        {'hop': 2, 'ip': '10.0.0.1', 'latency_ms': 2.0, 'country': 'Local', 'region': 'LAN', 'city': 'Private', 'org': ''},
+                        {'hop': 3, 'ip': '203.130.18.1', 'latency_ms': 5.0, 'country': 'Indonesia', 'region': 'West Java', 'city': 'Bandung', 'org': 'ISP-1'},
+                    ]
+                ),
+                ConnectionTrace(
+                    destination='cloudflare.com',
+                    destination_ip='104.16.132.229',
+                    hops=[
+                        {'hop': 1, 'ip': '192.168.1.1', 'latency_ms': 1.0, 'country': 'Local', 'region': 'LAN', 'city': 'Private', 'org': ''},
+                        {'hop': 2, 'ip': '203.130.18.1', 'latency_ms': 3.0, 'country': 'Indonesia', 'region': 'West Java', 'city': 'Jakarta', 'org': 'ISP-1'},
+                    ]
+                ),
+            ])
+            self.stdout.write(self.style.SUCCESS('Seeded ConnectionTrace records.'))
+            seeded = True
+        else:
+            self.stdout.write(self.style.NOTICE('ConnectionTrace records already exist, skipping.'))
 
         cache.delete('scanner_oui_vendors')
         cache.delete('scanner_port_services')

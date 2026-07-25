@@ -1,13 +1,14 @@
 import json
+from collections import Counter
 from datetime import datetime
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.core.paginator import Paginator
 from django.db import connection
 from django.core.cache import cache
-from apps.scan.models import Scan, IspInfo
-from apps.scan.scanner import get_public_ip, get_isp_info, get_wan_interface_info, get_gateway
+from apps.scan.models import Scan, IspInfo, ConnectionTrace
+from apps.scan.scanner import get_public_ip, get_isp_info, get_wan_interface_info, get_gateway, trace_route, get_router_clients
 from .models import DbMaintenance
 
 DASHBOARD_PAGE_SIZE = 10
@@ -84,8 +85,9 @@ def network_map(request):
                 'id': GATEWAY_ID,
                 'label': f"Gateway\n{gateway_ip}",
                 'title': f"Gateway Router\nOS: {scan.os}\nBrand: {scan.brand or 'Unknown'}",
-                'shape': 'icon',
-                'icon': {'face': 'FontAwesome', 'code': '\uf6ff', 'size': 50, 'color': '#22c55e'},
+                'shape': 'image',
+                'image': 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2VmNDQ0NCIgZmlsbC1vcGFjaXR5PSIwLjg1Ij48cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptLTEgMTcuOTNjLTMuOTUtLjQ5LTctMy44NS03LTcuOTMgMC0uNjIuMDgtMS4yMS4yMS0xLjc5TDkgMTV2MWMwIDEuMS45IDIgMiAydjEuOTN6bTYuOS0yLjU0Yy0uMjYtLjgxLTEtMS4zOS0xLjktMS4zOWgtMXYtM2MwLS41NS0uNDUtMS0xLTFIOHYtMmgyYy41NSAwIDEtLjQ1IDEtMVY3aDJjMS4xIDAgMi0uOSAyLTJ2LS40MWMyLjkzIDEuMTkgNSA0LjA2IDUgNy40MSAwIDIuMDgtLjggMy45Ny0yLjEgNS4zOXoiLz48L3N2Zz4=',
+                'size': 35,
                 'font': {'color': '#22c55e', 'size': 13,
                          'face': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'},
             }
@@ -109,8 +111,9 @@ def network_map(request):
             'id': GATEWAY_ID,
             'label': f"Gateway\n{gateway_ip or '192.168.1.1'}",
             'title': 'Gateway Router',
-            'shape': 'icon',
-            'icon': {'face': 'FontAwesome', 'code': '\uf6ff', 'size': 50, 'color': '#22c55e'},
+            'shape': 'image',
+            'image': 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2VmNDQ0NCIgZmlsbC1vcGFjaXR5PSIwLjg1Ij48cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptLTEgMTcuOTNjLTMuOTUtLjQ5LTctMy44NS03LTcuOTMgMC0uNjIuMDgtMS4yMS4yMS0xLjc5TDkgMTV2MWMwIDEuMS45IDIgMiAydjEuOTN6bTYuOS0yLjU0Yy0uMjYtLjgxLTEtMS4zOS0xLjktMS4zOWgtMXYtM2MwLS41NS0uNDUtMS0xLTFIOHYtMmgyYy41NSAwIDEtLjQ1IDEtMVY3aDJjMS4xIDAgMi0uOSAyLTJ2LS40MWMyLjkzIDEuMTkgNSA0LjA2IDUgNy40MSAwIDIuMDgtLjggMy45Ny0yLjEgNS4zOXoiLz48L3N2Zz4=',
+            'size': 35,
             'font': {'color': '#22c55e', 'size': 13,
                      'face': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'},
         }
@@ -120,8 +123,9 @@ def network_map(request):
         'id': ISP_ID,
         'label': 'ISP',
         'title': 'Internet Service Provider',
-        'shape': 'icon',
-        'icon': {'face': 'FontAwesome', 'code': '\uf0c2', 'size': 50, 'color': '#60a5fa'},
+        'shape': 'image',
+        'image': 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiIGZpbGwtb3BhY2l0eT0iMC44NSI+PHBhdGggZD0iTTE5LjM1IDEwLjA0QzE4LjY3IDYuNTkgMTUuNjQgNCAxMiA0IDkuMTEgNCA2LjYgNS42NCA1LjM1IDguMDQgMi4zNCA4LjM2IDAgMTAuOTEgMCAxNGMwIDMuMzEgMi42OSA2IDYgNmgxM2MyLjc2IDAgNS0yLjI0IDUtNSAwLTIuNjQtMi4wNS00Ljc4LTQuNjUtNC45NnoiLz48L3N2Zz4=',
+        'size': 35,
         'font': {'color': '#93c5fd', 'size': 13,
                  'face': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'},
     }
@@ -245,6 +249,20 @@ def router_clients(request):
     client_qs = scans.exclude(ip=gateway_ip).order_by('-scanned_at') if gateway_ip else scans.order_by('-scanned_at')
     total_clients = client_qs.count()
 
+    # Search filter
+    search_query = request.GET.get('q', '').strip()
+    if search_query:
+        client_qs = client_qs.filter(
+            models.Q(ip__icontains=search_query) |
+            models.Q(device__icontains=search_query) |
+            models.Q(os__icontains=search_query) |
+            models.Q(brand__icontains=search_query) |
+            models.Q(mac_address__icontains=search_query) |
+            models.Q(isp_name__icontains=search_query) |
+            models.Q(public_ip__icontains=search_query)
+        )
+    total_filtered = client_qs.count()
+
     # Build lightweight client dicts for current page only (paginate queryset first)
     paginator = Paginator(client_qs, CLIENTS_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get('page', 1))
@@ -279,7 +297,147 @@ def router_clients(request):
         'clients': client_list,
         'total_devices': scans.count(),
         'total_clients': total_clients,
+        'total_filtered': total_filtered,
         'page_obj': page_obj,
+        'search_query': search_query,
+    })
+
+
+@login_required
+def analytics(request):
+    traces = ConnectionTrace.objects.all()
+    scans = Scan.objects.all()
+    total_traces = traces.count()
+    total_devices = scans.count()
+
+    # Destination analytics
+    dest_counter = Counter()
+    country_counter = Counter()
+    org_counter = Counter()
+    ip_counter = Counter()
+    total_hops = 0
+
+    for t in traces:
+        dest_counter[t.destination] += 1
+        if t.destination_ip:
+            ip_counter[t.destination_ip] += 1
+        hops = t.hops or []
+        total_hops += len(hops)
+        for hop in hops:
+            country = hop.get('country') or 'Unknown'
+            org = hop.get('org') or 'Unknown'
+            if country and country not in ('Local', 'LAN', 'Private'):
+                country_counter[country] += 1
+            if org:
+                org_counter[org] += 1
+
+    top_destinations = dest_counter.most_common(15)
+    top_countries = country_counter.most_common(15)
+    top_orgs = org_counter.most_common(15)
+    top_dest_ips = ip_counter.most_common(15)
+
+    # Device analytics
+    os_stats = scans.values('os').annotate(count=Count('id')).order_by('-count')
+    brand_stats = scans.values('brand').annotate(count=Count('id')).order_by('-count')
+    device_type_stats = scans.values('device').annotate(count=Count('id')).order_by('-count')
+
+    # Router clients
+    router_clients = []
+    try:
+        router_clients = get_router_clients()
+    except Exception:
+        pass
+
+    # Recent traces
+    recent_traces = traces.order_by('-created_at')[:20]
+
+    # Prepare chart data
+    chart_top_dest_labels = json.dumps([item[0] for item in top_destinations])
+    chart_top_dest_data = json.dumps([item[1] for item in top_destinations])
+    chart_country_labels = json.dumps([item[0] for item in top_countries])
+    chart_country_data = json.dumps([item[1] for item in top_countries])
+    chart_os_labels = json.dumps([item['os'] for item in os_stats])
+    chart_os_data = json.dumps([item['count'] for item in os_stats])
+    chart_brand_labels = json.dumps([item['brand'] for item in brand_stats])
+    chart_brand_data = json.dumps([item['count'] for item in brand_stats])
+
+    return render(request, 'analytics.html', {
+        'total_traces': total_traces,
+        'total_devices': total_devices,
+        'total_hops': total_hops,
+        'router_clients_count': len(router_clients),
+        'unique_destinations': len(dest_counter),
+        'unique_countries': len(country_counter),
+        'top_destinations': top_destinations,
+        'top_countries': top_countries,
+        'top_orgs': top_orgs,
+        'top_dest_ips': top_dest_ips,
+        'os_stats': os_stats,
+        'brand_stats': brand_stats,
+        'device_type_stats': device_type_stats,
+        'recent_traces': recent_traces,
+        'chart_top_dest_labels': chart_top_dest_labels,
+        'chart_top_dest_data': chart_top_dest_data,
+        'chart_country_labels': chart_country_labels,
+        'chart_country_data': chart_country_data,
+        'chart_os_labels': chart_os_labels,
+        'chart_os_data': chart_os_data,
+        'chart_brand_labels': chart_brand_labels,
+        'chart_brand_data': chart_brand_data,
+    })
+
+
+@login_required
+def trace_connection(request):
+    traces = []
+    error = None
+    destination = ''
+    dest_ip = None
+    result = None
+    router_clients = []
+
+    if request.method == 'POST':
+        destination = request.POST.get('destination', '').strip()
+        if destination:
+            # Normalize URL -> hostname
+            parsed = __import__('urllib.parse').parse(destination)
+            hostname = parsed.hostname or parsed.path.split('/')[0] if parsed.path else destination
+            if not hostname:
+                hostname = destination.replace('https://', '').replace('http://', '').split('/')[0]
+
+            destination = hostname
+            try:
+                import socket
+                dest_ip = socket.gethostbyname(destination)
+            except Exception:
+                dest_ip = destination
+            result = trace_route(destination)
+            if result and result.get('hops'):
+                ConnectionTrace.objects.create(
+                    destination=destination,
+                    destination_ip=dest_ip,
+                    hops=result.get('hops'),
+                )
+            elif result and result.get('error'):
+                error = result.get('error')
+            else:
+                error = 'No hops found. Destination may be unreachable.'
+
+    recent_traces = ConnectionTrace.objects.all()[:20]
+
+    try:
+        from apps.scan.scanner import get_router_clients
+        router_clients = get_router_clients()
+    except Exception:
+        router_clients = []
+
+    return render(request, 'trace_connection.html', {
+        'recent_traces': recent_traces,
+        'destination': destination,
+        'dest_ip': dest_ip,
+        'result': result,
+        'error': error,
+        'router_clients': router_clients,
     })
 
 

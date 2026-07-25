@@ -9,5 +9,6 @@ urlpatterns = [
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('', include('apps.dashboard.urls')),
     path('scan/', include('apps.scan.urls')),
+    path('trace-connection/', dashboard_views.trace_connection, name='trace_connection'),
     path('db-maintenance/', dashboard_views.db_maintenance, name='db_maintenance'),
 ]

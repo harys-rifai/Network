@@ -206,17 +206,11 @@ body.no-nav .container { padding-top: 4rem; display: flex; align-items: center; 
     box-shadow: var(--shadow-sm);
 }
 .chart-box h2 { color: var(--text-primary); margin-bottom: 0.5rem; font-size: 0.82rem; font-weight: 600; }
+.chart-wrap { position: relative; height: 260px; }
 .chart-box--compact .chart-wrap { position: relative; height: 190px; }
 
 /* ── Recent section ────────────────────────────────────────────────── */
-.recent-section { display: flex; flex-direction: column; gap: 0; }
-.recent-section > h2 {
-    color: var(--text-primary);
-    font-size: 0.88rem; font-weight: 700;
-    padding: 0 0 0.6rem 0;
-    border-bottom: 1px solid var(--border-default);
-    margin-bottom: 0;
-}
+.recent-section { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 0; }
 
 
 /* ── Universal Table ───────────────────────────────────────────────── */
@@ -507,8 +501,23 @@ body.no-nav .container { padding-top: 4rem; display: flex; align-items: center; 
 }
 .summary-pill strong { color: var(--text-primary); }
 
+.search-form { display: flex; gap: 0.4rem; align-items: center; }
+.search-input {
+    padding: 0.45rem 0.75rem;
+    background: var(--bg-root); color: var(--text-primary);
+    border: 1px solid var(--border-default); border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 0.8rem;
+    min-width: 220px; max-width: 360px; width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.search-input:focus {
+    outline: none; border-color: var(--accent-green);
+    box-shadow: 0 0 0 3px var(--accent-green-muted);
+}
+.search-input::placeholder { color: var(--text-muted); opacity: 0.7; }
+
 .client-table-wrap { overflow-x: auto; }
-.client-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.client-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; table-layout: auto; }
 .client-table th {
     background: rgba(255,255,255,0.018);
     color: var(--text-muted); font-weight: 600; font-size: 0.66rem;
@@ -520,7 +529,7 @@ body.no-nav .container { padding-top: 4rem; display: flex; align-items: center; 
 .client-table td {
     padding: 0.42rem 0.7rem; text-align: left;
     border-bottom: 1px solid var(--border-subtle);
-    color: var(--text-primary); white-space: nowrap;
+    color: var(--text-primary); white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis;
 }
 .client-table tbody tr { transition: background 0.1s; }
 .client-table tbody tr:hover { background: rgba(250,204,21,0.035); }
@@ -733,6 +742,23 @@ body.no-nav .container { padding-top: 4rem; display: flex; align-items: center; 
 /* ── table-block: ensure border-radius clips the inner table ───────── */
 .table-block { border-radius: var(--radius); overflow: hidden; }
 .table-block > .table-wrapper > table { border-radius: 0; }
+
+/* Table block header bar (title + count on same row) */
+.table-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border-default);
+    background: rgba(255,255,255,0.018);
+    flex-shrink: 0;
+}
+.table-block-header h2 {
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin: 0;
+}
 
 /* ── Form page (edit scan) wider box ───────────────────────────────── */
 .form-box {

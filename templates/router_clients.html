@@ -4,7 +4,16 @@
 {% block content %}
 <div class="page-header">
     <h1>Router &amp; Clients</h1>
-    <a href="{% url 'scan_trigger' %}" class="btn-primary">+ Run Scan</a>
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+        <form method="get" class="search-form" style="display:flex;gap:0.4rem;align-items:center;">
+            <input type="text" name="q" value="{{ search_query|default:'' }}" placeholder="Search IP, device, OS, brand, MAC..." class="search-input">
+            <button type="submit" class="btn-primary" style="padding:0.45rem 0.9rem;">Search</button>
+            {% if search_query %}
+            <a href="{% url 'router_clients' %}" class="btn-small">Clear</a>
+            {% endif %}
+        </form>
+        <a href="{% url 'scan_trigger' %}" class="btn-primary">+ Run Scan</a>
+    </div>
 </div>
 
 {% if messages %}
@@ -126,14 +135,14 @@
 
 <!-- Client list -->
 <div class="clients-section">
-    <div class="summary-row">
+    <div class="summary-row" style="margin-bottom:0.6rem;">
         <h2>Client List</h2>
         <div class="summary-pill"><strong>{{ total_clients }}</strong>&nbsp;device{{ total_clients|pluralize }}</div>
+        {% if search_query %}
+        <div class="summary-pill">Found:&nbsp;<strong>{{ total_filtered }}</strong></div>
+        {% endif %}
         {% if router and router.ip != 'Unknown' %}
         <div class="summary-pill">Gateway:&nbsp;<strong>{{ router.ip }}</strong></div>
-        {% endif %}
-        {% if page_obj.paginator.num_pages > 1 %}
-        <div class="summary-pill">Page&nbsp;<strong>{{ page_obj.number }}</strong>&nbsp;/&nbsp;<strong>{{ page_obj.paginator.num_pages }}</strong></div>
         {% endif %}
     </div>
 
@@ -142,19 +151,19 @@
             <table class="client-table">
                 <thead>
                     <tr>
-                        <th>IP Address</th>
+                        <th style="width:1%;">IP Address</th>
                         <th>Device</th>
                         <th>OS</th>
                         <th>Brand</th>
-                        <th>MAC Address</th>
+                        <th style="width:1%;">MAC Address</th>
                         <th>Vendor</th>
-                        <th>Latency</th>
+                        <th style="width:1%;">Latency</th>
                         <th>Open Ports</th>
-                        <th>Gateway</th>
-                        <th>DNS</th>
+                        <th style="width:1%;">Gateway</th>
+                        <th style="width:1%;">DNS</th>
                         <th>ISP</th>
-                        <th>Public IP</th>
-                        <th>Scanned At</th>
+                        <th style="width:1%;">Public IP</th>
+                        <th style="width:1%;">Scanned At</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -196,4 +205,20 @@
         {% include 'pagination.html' %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            var form = this.closest('.search-form');
+            if (this.value.trim() === '') {
+                window.location.href = '{% url 'router_clients' %}';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

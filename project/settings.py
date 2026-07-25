@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-c9srw%r^%&vlc3!3&oumvc2hvnxy8(tal6rwd$uzx!umk-y2p-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['testserver', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -133,3 +133,34 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Map Django message levels to CSS alert classes used in templates
+from django.contrib.messages import constants as messages_constants
+MESSAGE_TAGS = {
+    messages_constants.DEBUG:   'secondary',
+    messages_constants.INFO:    'info',
+    messages_constants.SUCCESS: 'success',
+    messages_constants.WARNING: 'warn',
+    messages_constants.ERROR:   'danger',
+}
+
+# In-memory cache for scanner ISP/public-IP lookups
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'netmon-cache',
+    }
+}
+
+# Optional: Router / Access Point integration
+# Set these to enable fetching active clients from your router admin interface.
+# Leave blank/None to disable router integration.
+import os
+ROUTER_ENABLED = os.environ.get('ROUTER_ENABLED', 'true').lower() in ('true', '1', 'yes')
+ROUTER_HOST = os.environ.get('ROUTER_HOST', '192.168.1.26')
+ROUTER_USERNAME = os.environ.get('ROUTER_USERNAME', 'admin')
+ROUTER_PASSWORD = os.environ.get('ROUTER_PASSWORD', 'pro234')
+ROUTER_VERIFY_SSL = False
+
+# Auto-refresh interval for router client cache (seconds)
+ROUTER_CACHE_TTL = 60

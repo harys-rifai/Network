@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}NET-MON{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" crossorigin="anonymous">
     {% block extra_head %}{% endblock %}
 </head>
 <body class="{% if not user.is_authenticated %}no-nav{% endif %}">
@@ -19,10 +20,12 @@
             </a>
         </li>
         <li>
+            {% with uname=request.resolver_match.url_name %}
             <a href="{% url 'scan_list' %}"
-               class="{% if request.resolver_match.url_name in 'scan_list,scan_detail,scan_edit,scan_delete,scan_trigger' %}nav-active{% endif %}">
+               class="{% if uname == 'scan_list' or uname == 'scan_detail' or uname == 'scan_edit' or uname == 'scan_delete' or uname == 'scan_trigger' %}nav-active{% endif %}">
                 Scan Results
             </a>
+            {% endwith %}
         </li>
         <li>
             <a href="{% url 'router_clients' %}"
@@ -31,9 +34,21 @@
             </a>
         </li>
         <li>
+            <a href="{% url 'analytics' %}"
+               class="{% if request.resolver_match.url_name == 'analytics' %}nav-active{% endif %}">
+                Analytics
+            </a>
+        </li>
+        <li>
             <a href="{% url 'network_map' %}"
                class="{% if request.resolver_match.url_name == 'network_map' %}nav-active{% endif %}">
                 Network Map
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'trace_connection' %}"
+               class="{% if request.resolver_match.url_name == 'trace_connection' %}nav-active{% endif %}">
+                Connection Trace
             </a>
         </li>
         <li>

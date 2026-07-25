@@ -81,33 +81,35 @@ def sort_url(context, field, label=''):
 @register.simple_tag(takes_context=True)
 def duplicate_counts(context, field):
     """
-    Return a dict of {value: count} for duplicate values in the given field.
-    Only includes values that appear more than once.
-    Uses filtered_queryset if available, otherwise page_obj.
+    Return a dict of {value: count} for values that appear more than once.
+    Uses the full filtered_queryset (DB aggregate) for accuracy across all pages.
+    Falls back to current page items if no queryset available.
     """
-    page_obj = context.get('page_obj')
     queryset = context.get('filtered_queryset')
-    
-    # Use full queryset if available, otherwise just current page
+
     if queryset is not None:
-        objects = queryset
-    elif page_obj:
-        objects = page_obj.object_list
-    else:
+        # DB-level aggregation — efficient even for large datasets
+        try:
+            from django.db.models import Count
+            dupes = (
+                queryset
+                .exclude(**{f'{field}__isnull': True})
+                .exclude(**{field: ''})
+                .values(field)
+                .annotate(_cnt=Count('id'))
+                .filter(_cnt__gt=1)
+            )
+            return {entry[field]: entry['_cnt'] for entry in dupes}
+        except Exception:
+            pass
+
+    # Fallback: count from current page only
+    page_obj = context.get('page_obj')
+    if not page_obj:
         return {}
-
-    # Extract values efficiently
-    values = []
-    for obj in objects:
-        val = getattr(obj, field, None)
-        if val:  # Skip None and empty strings
-            values.append(val)
-
-    # Count occurrences
-    counts = Counter(values)
-    
-    # Return only duplicates (count > 1)
-    return {val: cnt for val, cnt in counts.items() if cnt > 1}
+    values = [getattr(obj, field, None) for obj in page_obj.object_list]
+    counts = Counter(v for v in values if v)
+    return {v: c for v, c in counts.items() if c > 1}
 
 
 @register.filter

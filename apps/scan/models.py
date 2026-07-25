@@ -115,3 +115,19 @@ class IspInfo(models.Model):
 
     def __str__(self):
         return f"{self.ip} - {self.isp or self.org or 'Unknown'}"
+
+
+class ConnectionTrace(models.Model):
+    destination = models.CharField(max_length=255)
+    destination_ip = models.GenericIPAddressField(blank=True, null=True)
+    hops = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['destination', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.destination} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"

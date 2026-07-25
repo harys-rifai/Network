@@ -1,5 +1,4 @@
 @echo off
-setlocal enabledelayedexpansion
 
 set PGPASSWORD=Password09!
 set PGBIN="C:\Program Files\PostgreSQL\18\bin"
@@ -21,5 +20,3 @@ python manage.py seed
 
 echo Starting Django server...
 python manage.py runserver 8080
-
-endlocal

@@ -2,32 +2,44 @@
 <div class="table-pagination">
     <span class="pag-info">
         {% if page_obj.paginator.num_pages > 1 %}
-            Page <strong>{{ page_obj.number }}</strong> of <strong>{{ page_obj.paginator.num_pages }}</strong>
+            Page <strong>{{ page_obj.number }}</strong>
+            of <strong>{{ page_obj.paginator.num_pages }}</strong>
             &nbsp;&mdash;&nbsp;
         {% endif %}
-        <strong>{{ page_obj.paginator.count }}</strong>&nbsp;record{{ page_obj.paginator.count|pluralize }}
+        <strong>{{ page_obj.paginator.count }}</strong>&thinsp;record{{ page_obj.paginator.count|pluralize }}
+        {% if search_query %}
+            &nbsp;(filtered from {{ total_clients }})
+        {% endif %}
     </span>
+
     {% if page_obj.paginator.num_pages > 1 %}
     <div class="pag-actions">
         {% if page_obj.has_previous %}
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page=1"
-               class="btn-page" title="First">&laquo;</a>
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
-               class="btn-page">&lsaquo; Prev</a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page=1"
+               class="btn-page" title="First page">&laquo;</a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
+               class="btn-page">&lsaquo;&nbsp;Prev</a>
         {% else %}
             <span class="btn-page" aria-disabled="true">&laquo;</span>
-            <span class="btn-page" aria-disabled="true">&lsaquo; Prev</span>
+            <span class="btn-page" aria-disabled="true">&lsaquo;&nbsp;Prev</span>
         {% endif %}
 
-        <span class="btn-page active">{{ page_obj.number }}</span>
+        {% for p in page_obj.paginator.page_range %}
+            {% if p == page_obj.number %}
+                <span class="btn-page active">{{ p }}</span>
+            {% else %}
+                <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ p }}"
+                   class="btn-page">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
 
         {% if page_obj.has_next %}
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
-               class="btn-page">Next &rsaquo;</a>
-            <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}"
-               class="btn-page" title="Last">&raquo;</a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
+               class="btn-page">Next&nbsp;&rsaquo;</a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}"
+               class="btn-page" title="Last page">&raquo;</a>
         {% else %}
-            <span class="btn-page" aria-disabled="true">Next &rsaquo;</span>
+            <span class="btn-page" aria-disabled="true">Next&nbsp;&rsaquo;</span>
             <span class="btn-page" aria-disabled="true">&raquo;</span>
         {% endif %}
     </div>

@@ -30,6 +30,12 @@
         </form>
 
         <div class="table-block">
+            <div class="table-block-header">
+                <h2 style="font-size:0.82rem;font-weight:700;margin:0;color:var(--text-primary);">Tables</h2>
+                <span class="pag-info">
+                    <strong>{{ page_obj.paginator.count }}</strong>&thinsp;table{{ page_obj.paginator.count|pluralize }}
+                </span>
+            </div>
             <div class="table-wrapper">
                 <table class="hacker-table">
                     <thead>
