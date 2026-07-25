@@ -58,6 +58,19 @@ def scan_list(request):
     paginator = Paginator(queryset, ITEMS_PER_PAGE)
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
+    # Resolve hostnames for display
+    hostname_map = {}
+    for scan in page_obj.object_list:
+        hostname = scan.device or str(scan.ip)
+        try:
+            import socket
+            resolved = socket.gethostbyaddr(str(scan.ip))[0]
+            if resolved and resolved != str(scan.ip):
+                hostname = resolved
+        except Exception:
+            pass
+        hostname_map[str(scan.ip)] = hostname
+
     # Router / Gateway info
     scans = Scan.objects.all()
     gateway_scan = scans.filter(gateway__isnull=False).order_by('-scanned_at').first()
@@ -183,6 +196,7 @@ def scan_list(request):
         'total_filtered': total_filtered,
         'client_page_obj': client_page,
         'search_query': search_query,
+        'hostname_map': hostname_map,
     })
 
 
