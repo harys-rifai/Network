@@ -198,6 +198,10 @@ DATABASES = {
 |:---:|:---:|
 | <img src="img/analityc.png" width="380"> | <img src="img/database.png" width="380"> |
 
+| Network Map | Connection Trace |
+|:---:|:---:|
+| <img src="img/map-network.png" width="380"> | <img src="img/connection tracert.png" width="380"> |
+
 ## 📝 Changelog
 
 ### 2026-07-25
