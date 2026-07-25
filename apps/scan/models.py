@@ -118,15 +118,25 @@ class IspInfo(models.Model):
 
 
 class ConnectionTrace(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_RUNNING = 'running'
+    STATUS_DONE = 'done'
+    STATUS_ERROR = 'error'
+
     destination = models.CharField(max_length=255)
     destination_ip = models.GenericIPAddressField(blank=True, null=True)
     hops = models.JSONField(blank=True, null=True)
+    status = models.CharField(max_length=20, default=STATUS_PENDING, db_index=True)
+    error = models.TextField(blank=True, null=True)
+    trace_id = models.CharField(max_length=64, blank=True, null=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['destination', 'created_at']),
+            models.Index(fields=['trace_id']),
+            models.Index(fields=['status']),
         ]
 
     def __str__(self):

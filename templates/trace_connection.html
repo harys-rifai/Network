@@ -5,10 +5,10 @@
 <div class="page-header">
     <h1>Connection Trace</h1>
     <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-        <form method="post" class="search-form" style="display:flex;gap:0.4rem;align-items:center;">
+        <form method="post" class="search-form" style="display:flex;gap:0.4rem;align-items:center;" id="traceForm">
             {% csrf_token %}
-            <input type="text" name="destination" value="{{ destination|default:'' }}" placeholder="Enter domain or IP (e.g. google.com)" class="search-input" required>
-            <button type="submit" class="btn-primary" style="padding:0.45rem 0.9rem;">Trace Route</button>
+            <input type="text" name="destination" value="{{ destination|default:'' }}" placeholder="Enter domain or IP (e.g. google.com)" class="search-input" required id="traceDestination">
+            <button type="submit" class="btn-primary" style="padding:0.45rem 0.9rem;" id="traceSubmitBtn">Trace Route</button>
         </form>
     </div>
 </div>
@@ -151,5 +151,217 @@
     color: var(--text-secondary); background: rgba(255,255,255,0.03);
 }
 .trace-history { margin-top: 0.5rem; }
+
+#traceModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+#traceModal .modal-box {
+    background: rgba(15,23,42,0.85);
+    border: 1px solid rgba(96,165,250,0.25);
+    border-radius: var(--radius-lg);
+    width: min(760px, 92vw);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow:
+        inset 0 0 30px rgba(96,165,250,0.06),
+        0 0 40px rgba(96,165,250,0.15),
+        0 20px 60px rgba(0,0,0,0.6);
+    backdrop-filter: blur(16px);
+}
+#traceModal .modal-header {
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid rgba(96,165,250,0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+}
+#traceModal .modal-header h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    text-shadow: 0 0 10px rgba(96,165,250,0.2);
+}
+#traceModal .modal-body {
+    padding: 0.8rem 1rem;
+    overflow-y: auto;
+    flex: 1;
+}
+#traceModal .modal-close {
+    background: transparent;
+    border: 1px solid rgba(96,165,250,0.25);
+    color: var(--text-secondary);
+    border-radius: var(--radius);
+    padding: 0.25rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.15s;
+}
+#traceModal .modal-close:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    box-shadow: 0 0 12px rgba(239,68,68,0.2);
+}
+.hop-row {
+    display: flex; gap: 0.7rem; padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(96,165,250,0.08);
+    font-size: 0.82rem;
+    transition: background 0.1s;
+}
+.hop-row:hover { background: rgba(96,165,250,0.04); }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var form = document.getElementById('traceForm');
+    var destinationInput = document.getElementById('traceDestination');
+    var submitBtn = document.getElementById('traceSubmitBtn');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var destination = (destinationInput.value || '').trim();
+        if (!destination) return;
+
+        var modal = document.getElementById('traceModal');
+        var modalTitle = document.getElementById('traceModalTitle');
+        var modalBody = document.getElementById('traceModalBody');
+        var closeBtn = document.getElementById('traceModalClose');
+        if (!modal || !modalBody) return;
+
+        modalTitle.textContent = 'Tracing: ' + destination;
+        modalBody.innerHTML = '<div style="padding:1rem;color:var(--text-muted);">Running traceroute...</div>';
+        modal.style.display = 'flex';
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '{% url "trace_connection" %}', true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader('X-CSRFToken', form.querySelector('[name=csrfmiddlewaretoken]').value);
+        var formData = new FormData();
+        formData.append('destination', destination);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== 4) return;
+            if (xhr.status !== 200) {
+                modalBody.innerHTML = '<div style="padding:1rem;color:#ef4444;">Failed to start trace: ' + xhr.status + '</div>';
+                return;
+            }
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (data.trace_id) {
+                    pollTrace(data.trace_id);
+                } else if (data.error) {
+                    modalBody.innerHTML = '<div style="padding:1rem;color:#ef4444;">' + data.error + '</div>';
+                }
+            } catch (err) {
+                modalBody.innerHTML = '<div style="padding:1rem;color:#ef4444;">Invalid response</div>';
+            }
+        };
+        xhr.send(formData);
+    });
+
+    function pollTrace(traceId) {
+        var modalBody = document.getElementById('traceModalBody');
+        if (!modalBody) return;
+
+        var attempts = 0;
+        var maxAttempts = 120;
+        var interval = setInterval(function() {
+            attempts++;
+            if (attempts > maxAttempts) {
+                clearInterval(interval);
+                appendHopRow(modalBody, {hop: '—', ip: 'Trace timed out', latency_ms: null, country: '—', region: '—', city: '—', org: '—'});
+                return;
+            }
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/api/trace/' + encodeURIComponent(traceId) + '/progress/', true);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState !== 4) return;
+                if (xhr.status !== 200) return;
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    renderHops(modalBody, data.hops || []);
+                    if (data.status === 'done' || data.status === 'error') {
+                        clearInterval(interval);
+                        if (data.error) {
+                            appendHopRow(modalBody, {hop: '!', ip: data.error, latency_ms: null, country: '—', region: '—', city: '—', org: '—'});
+                        }
+                    }
+                } catch (err) {
+                    // ignore parse errors during polling
+                }
+            };
+            xhr.send();
+        }, 500);
+    }
+
+    function renderHops(container, hops) {
+        var existing = container.querySelectorAll('.hop-row');
+        var seen = {};
+        existing.forEach(function(row) {
+            seen[row.getAttribute('data-hop')] = true;
+        });
+
+        hops.forEach(function(hop) {
+            var key = String(hop.hop);
+            if (seen[key]) return;
+            appendHopRow(container, hop);
+        });
+    }
+
+    function appendHopRow(container, hop) {
+        var row = document.createElement('div');
+        row.className = 'hop-row';
+        row.setAttribute('data-hop', hop.hop);
+        row.style.cssText = 'display:flex;gap:0.6rem;padding:0.35rem 0;border-bottom:1px solid var(--border-subtle);font-size:0.8rem;';
+        row.innerHTML = '<span style="width:40px;font-weight:700;text-align:center;">' + escapeHtml(String(hop.hop)) + '</span>' +
+            '<span style="width:140px;font-family:var(--font-mono);">' + escapeHtml(String(hop.ip || '—')) + '</span>' +
+            '<span style="width:80px;">' + escapeHtml(String(hop.latency_ms || '—')) + '</span>' +
+            '<span style="flex:1;">' + escapeHtml(String(hop.country || '—')) + ' / ' + escapeHtml(String(hop.city || '—')) + '</span>';
+        container.appendChild(row);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+})();
+</script>
+{% endblock %}
+
+{% block extra_head %}
+<div id="traceModal" role="dialog" aria-modal="true">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 id="traceModalTitle">Trace Route</h3>
+            <button class="modal-close" id="traceModalClose" type="button">Close</button>
+        </div>
+        <div class="modal-body" id="traceModalBody">
+            <div style="padding:1rem;color:var(--text-muted);">Running traceroute...</div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var modal = document.getElementById('traceModal');
+    var closeBtn = document.getElementById('traceModalClose');
+    if (!modal || !closeBtn) return;
+    closeBtn.addEventListener('click', function() {
+        modal.style.display = 'none';
+    });
+})();
+</script>
 {% endblock %}

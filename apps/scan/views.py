@@ -1,17 +1,19 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.core.paginator import Paginator
 from django.core.cache import cache
+from django.http import JsonResponse
 import ipaddress
 import time
 from datetime import datetime
-from .models import Scan, ScanPort, ScanMacHistory, IspInfo
-from .scanner import scan_network, get_active_interface, get_public_ip, get_isp_info, get_port_services
+from .models import Scan, ScanPort, ScanMacHistory, IspInfo, ConnectionTrace
+from .scanner import scan_network, get_active_interface, get_public_ip, get_isp_info, get_port_services, get_gateway, get_wan_interface_info, mac_to_vendor, trace_route
 
 ALLOWED_SORT_FIELDS = {'ip', 'device', 'os', 'brand', 'mac_address', 'latency_ms', 'scanned_at'}
 ITEMS_PER_PAGE = 25
+CLIENTS_PAGE_SIZE = 25
 
 
 def _resolve_sort(sort_param, order_param, default='-scanned_at'):
@@ -56,6 +58,104 @@ def scan_list(request):
     paginator = Paginator(queryset, ITEMS_PER_PAGE)
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
+    # Router / Gateway info
+    scans = Scan.objects.all()
+    gateway_scan = scans.filter(gateway__isnull=False).order_by('-scanned_at').first()
+    gateway_ip = gateway_scan.gateway if gateway_scan else None
+    if not gateway_ip:
+        fallback = scans.filter(router__isnull=False).order_by('-scanned_at').first()
+        gateway_ip = fallback.router if fallback else None
+    if not gateway_ip:
+        gateway_ip = get_gateway()
+
+    if gateway_scan:
+        router_info = {
+            'ip': gateway_ip or gateway_scan.ip,
+            'device': gateway_scan.device,
+            'os': gateway_scan.os,
+            'brand': gateway_scan.brand or 'Unknown',
+            'mac_address': gateway_scan.mac_address or 'Unknown',
+            'latency_ms': gateway_scan.latency_ms,
+            'open_ports': gateway_scan.open_ports or [],
+            'services': gateway_scan.services or {},
+            'server_info': gateway_scan.server_info,
+            'dns': gateway_scan.dns,
+            'scanned_at': gateway_scan.scanned_at,
+        }
+    else:
+        router_info = {
+            'ip': gateway_ip or 'Unknown',
+            'device': 'Unknown', 'os': 'Unknown', 'brand': 'Unknown',
+            'mac_address': 'Unknown', 'latency_ms': None,
+            'open_ports': [], 'services': {}, 'server_info': None,
+            'dns': None, 'scanned_at': None,
+        }
+
+    public_ip = cache.get('network_public_ip')
+    isp_info = cache.get('network_isp_info') or {}
+    wan_info = cache.get('network_wan_info') or {}
+    if public_ip is None:
+        public_ip = get_public_ip()
+        cache.set('network_public_ip', public_ip, 300)
+    if not isp_info:
+        isp_info = get_isp_info(public_ip) or {}
+        cache.set('network_isp_info', isp_info, 300)
+    if not wan_info:
+        wan_info = get_wan_interface_info() or {}
+        cache.set('network_wan_info', wan_info, 300)
+
+    db_isp = IspInfo.objects.filter(ip=public_ip).first() if public_ip else None
+    router_isp = {
+        'isp':     (db_isp.isp     if db_isp else None) or isp_info.get('isp')     or 'Unknown',
+        'org':     (db_isp.org     if db_isp else None) or isp_info.get('org')     or 'Unknown',
+        'as':      (db_isp.as_number if db_isp else None) or isp_info.get('as')   or 'Unknown',
+        'country': (db_isp.country if db_isp else None) or isp_info.get('country') or 'Unknown',
+        'region':  (db_isp.region  if db_isp else None) or isp_info.get('region')  or 'Unknown',
+        'city':    (db_isp.city    if db_isp else None) or isp_info.get('city')    or 'Unknown',
+    }
+
+    # Build client queryset (exclude gateway IP if known)
+    client_qs = scans.exclude(ip=gateway_ip).order_by('-scanned_at') if gateway_ip else scans.order_by('-scanned_at')
+    total_clients = client_qs.count()
+
+    # Search filter
+    search_query = request.GET.get('q', '').strip()
+    if search_query:
+        client_qs = client_qs.filter(
+            Q(ip__icontains=search_query) |
+            Q(device__icontains=search_query) |
+            Q(os__icontains=search_query) |
+            Q(brand__icontains=search_query) |
+            Q(mac_address__icontains=search_query) |
+            Q(isp_name__icontains=search_query) |
+            Q(public_ip__icontains=search_query)
+        )
+    total_filtered = client_qs.count()
+
+    client_paginator = Paginator(client_qs, CLIENTS_PAGE_SIZE)
+    client_page = client_paginator.get_page(request.GET.get('page', 1))
+
+    client_list = []
+    for scan in client_page.object_list:
+        mac = scan.mac_address
+        client_list.append({
+            'ip': scan.ip,
+            'device': scan.device,
+            'os': scan.os,
+            'brand': scan.brand or 'Unknown',
+            'mac_address': mac or '—',
+            'vendor': mac_to_vendor(mac) if mac else 'Unknown',
+            'latency_ms': scan.latency_ms if scan.latency_ms is not None else '—',
+            'open_ports': scan.open_ports or [],
+            'services': scan.services or {},
+            'gateway': scan.gateway,
+            'dns': scan.dns,
+            'public_ip': scan.public_ip,
+            'isp_name': scan.isp_name or router_isp.get('isp'),
+            'isp_org': scan.isp_org or router_isp.get('org'),
+            'scanned_at': scan.scanned_at,
+        })
+
     return render(request, 'scan_list.html', {
         'page_obj': page_obj,
         'filtered_queryset': queryset,
@@ -65,6 +165,15 @@ def scan_list(request):
         'duplicate_macs': dup_macs,
         'unique_ip_count': unique_ip_count,
         'unique_mac_count': unique_mac_count,
+        'router': router_info,
+        'router_isp': router_isp,
+        'router_wan': wan_info,
+        'public_ip': public_ip or 'Unknown',
+        'clients': client_list,
+        'total_clients': total_clients,
+        'total_filtered': total_filtered,
+        'client_page_obj': client_page,
+        'search_query': search_query,
     })
 
 
@@ -219,4 +328,21 @@ def scan_trigger(request):
     return render(request, 'scan_trigger.html', {
         'subnet': current_subnet,
         'iface': iface_name,
+    })
+
+
+@login_required
+def trace_progress(request, trace_id):
+    record = ConnectionTrace.objects.filter(trace_id=trace_id).first()
+    if not record:
+        return JsonResponse({'status': 'not_found', 'hops': []})
+
+    cache_key = f'trace_progress_{trace_id}'
+    cached = cache.get(cache_key, {})
+    return JsonResponse({
+        'status': record.status,
+        'destination': record.destination,
+        'destination_ip': record.destination_ip,
+        'hops': cached.get('hops', []),
+        'error': record.error,
     })

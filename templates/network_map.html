@@ -26,8 +26,8 @@
     <div class="network-side">
 
         <!-- ISP / Connection -->
-        <div class="chart-box">
-            <h2 style="margin-bottom:0.6rem;">ISP &amp; Connection</h2>
+        <div class="chart-box glass-box">
+            <h2 style="margin-bottom:0.7rem;text-shadow:0 0 10px rgba(96,165,250,0.2);">ISP &amp; Connection</h2>
             <div class="isp-info">
                 <div class="isp-row">
                     <span class="isp-label">ISP</span>
@@ -61,8 +61,8 @@
         </div>
 
         <!-- Legend -->
-        <div class="chart-box">
-            <h2 style="margin-bottom:0.6rem;">Legend</h2>
+        <div class="chart-box glass-box">
+            <h2 style="margin-bottom:0.7rem;text-shadow:0 0 10px rgba(96,165,250,0.2);">Legend</h2>
             <div class="legend-list">
                 <div class="legend-item">
                     <span class="legend-dot" style="background:#60a5fa;box-shadow:0 0 6px #60a5fa;"></span>
@@ -88,8 +88,8 @@
         </div>
 
         <!-- Device status list -->
-        <div class="chart-box">
-            <h2 style="margin-bottom:0.6rem;">
+        <div class="chart-box glass-box">
+            <h2 style="margin-bottom:0.7rem;text-shadow:0 0 10px rgba(96,165,250,0.2);">
                 Devices
                 <span style="color:var(--text-muted);font-size:0.7rem;font-weight:400;margin-left:0.35rem;">
                     ({{ total_devices }} total)
@@ -125,30 +125,33 @@
         var options = {
             nodes: {
                 shape: 'dot',
-                size: 18,
+                size: 20,
                 font: {
                     color: '#e5e7eb', size: 12,
-                    face: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
+                    face: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                    strokeWidth: 3,
+                    strokeColor: 'rgba(3,7,18,0.9)'
                 },
-                borderWidth: 2,
-                shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 8 }
+                borderWidth: 3,
+                shadow: { enabled: true, color: 'rgba(96,165,250,0.35)', size: 14, x: 0, y: 0 }
             },
             edges: {
-                width: 1.5,
-                color: { color: '#374151', highlight: '#facc15', opacity: 0.9 },
-                smooth: { type: 'continuous', roundness: 0.4 }
+                width: 2,
+                color: { color: 'rgba(96,165,250,0.35)', highlight: '#facc15', opacity: 0.9 },
+                shadow: { enabled: true, color: 'rgba(96,165,250,0.2)', size: 8, x: 0, y: 0 },
+                smooth: { type: 'continuous', roundness: 0.5 }
             },
             physics: {
                 enabled: true,
-                stabilization: { iterations: 150 },
+                stabilization: { iterations: 180 },
                 barnesHut: {
-                    gravitationalConstant: -3000,
-                    springLength: 160,
-                    springConstant: 0.04,
-                    centralGravity: 0.3
+                    gravitationalConstant: -3200,
+                    springLength: 170,
+                    springConstant: 0.05,
+                    centralGravity: 0.35
                 }
             },
-            interaction: { hover: true, tooltipDelay: 100 }
+            interaction: { hover: true, tooltipDelay: 80, navigationButtons: true, keyboard: true }
         };
 
         var net = new vis.Network(container, data, options);

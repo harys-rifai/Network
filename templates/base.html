@@ -28,12 +28,6 @@
             {% endwith %}
         </li>
         <li>
-            <a href="{% url 'router_clients' %}"
-               class="{% if request.resolver_match.url_name == 'router_clients' %}nav-active{% endif %}">
-                Router &amp; Clients
-            </a>
-        </li>
-        <li>
             <a href="{% url 'analytics' %}"
                class="{% if request.resolver_match.url_name == 'analytics' %}nav-active{% endif %}">
                 Analytics

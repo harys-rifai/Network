@@ -28,15 +28,132 @@
 </div>
 {% endif %}
 
-<div class="table-block">
+{% if router %}
+<div class="router-section">
+    <!-- Gateway card -->
+    <div class="card router-card">
+        <div class="card-header">Router / Gateway</div>
+        <div class="card-body" style="font-size:1rem;">
+            <div class="router-grid">
+                <div class="router-item">
+                    <span class="router-label">IP Address</span>
+                    <span class="router-value client-mono">{{ router.ip }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">Device</span>
+                    <span class="router-value">{{ router.device }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">OS</span>
+                    <span class="router-value">{{ router.os }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">Brand</span>
+                    <span class="router-value">{{ router.brand }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">MAC Address</span>
+                    <span class="router-value client-mono">{{ router.mac_address }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">Latency</span>
+                    <span class="router-value">{% if router.latency_ms %}{{ router.latency_ms }} ms{% else %}—{% endif %}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">DNS</span>
+                    <span class="router-value client-mono">{{ router.dns|default:"—" }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">Scanned At</span>
+                    <span class="router-value">{{ router.scanned_at|date:"Y-m-d H:i"|default:"—" }}</span>
+                </div>
+                {% if router.open_ports %}
+                <div class="router-item router-item--full">
+                    <span class="router-label">Open Ports</span>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.25rem;">
+                        {% for port in router.open_ports %}
+                        {% with svc=router.services|get_item:port %}
+                        <span class="port-badge port-{{ port|port_risk|lower }}"
+                              title="Port {{ port }}{% if svc %} — {{ svc }}{% endif %}">
+                            {{ port }}{% if svc %}&nbsp;<span style="opacity:0.65;font-weight:400;">{{ svc }}</span>{% endif %}
+                        </span>
+                        {% endwith %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if router.server_info %}
+                <div class="router-item router-item--full">
+                    <span class="router-label">Server Info</span>
+                    <span class="router-value">{{ router.server_info }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ISP card -->
+    <div class="card isp-card">
+        <div class="card-header">ISP &amp; WAN Info</div>
+        <div class="card-body" style="font-size:1rem;">
+            <div class="router-grid">
+                <div class="router-item">
+                    <span class="router-label">Public IP</span>
+                    <span class="router-value client-mono">{{ public_ip }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">ISP</span>
+                    <span class="router-value">{{ router_isp.isp }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">Organization</span>
+                    <span class="router-value">{{ router_isp.org }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">AS Number</span>
+                    <span class="router-value client-mono">{{ router_isp.as }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">Country</span>
+                    <span class="router-value">{{ router_isp.country }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">Region</span>
+                    <span class="router-value">{{ router_isp.region }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">City</span>
+                    <span class="router-value">{{ router_isp.city }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">WAN Interface</span>
+                    <span class="router-value">{{ router_wan.interface|default:"—" }}</span>
+                </div>
+                <div class="router-item">
+                    <span class="router-label">WAN Media</span>
+                    <span class="router-value">{{ router_wan.media|default:"—" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Scan Records -->
+<div class="table-block" style="margin-top:1rem;">
     <div class="table-block-header">
         <h2 style="font-size:0.82rem;font-weight:700;margin:0;color:var(--text-primary);">All Scan Records</h2>
         <span class="pag-info">
             <strong>{{ page_obj.paginator.count }}</strong>&thinsp;record{{ page_obj.paginator.count|pluralize }}
         </span>
     </div>
+    <div style="padding:0.5rem 0.7rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="scanTableSearch" placeholder="Search by IP, device, OS, brand, MAC..."
+               style="padding:0.4rem 0.7rem;background:var(--bg-root);color:var(--text-primary);border:1px solid var(--border-default);border-radius:var(--radius);font-family:var(--font-mono);font-size:0.8rem;min-width:220px;">
+        <span id="scanSearchCount" style="color:var(--text-muted);font-size:0.75rem;"></span>
+    </div>
     <div class="table-wrapper">
-        <table class="hacker-table">
+        <table class="hacker-table" id="scanTable">
             <thead>
                 <tr>
                     <th>{% sort_url 'ip' 'IP Address' %}</th>
@@ -106,4 +223,47 @@
     </div>
     {% include 'pagination.html' %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var searchInput = document.getElementById('scanTableSearch');
+    var table = document.getElementById('scanTable');
+    var countLabel = document.getElementById('scanSearchCount');
+    if (!searchInput || !table) return;
+
+    var columns = [0, 1, 2, 3, 4, 5, 6, 7];
+    var timeout = null;
+
+    function matchRow(row, query) {
+        if (!query) return true;
+        var cells = row.cells;
+        for (var i = 0; i < columns.length; i++) {
+            var cell = cells[columns[i]];
+            if (!cell) continue;
+            var text = (cell.textContent || '').toLowerCase();
+            if (text.indexOf(query) !== -1) return true;
+        }
+        return false;
+    }
+
+    searchInput.addEventListener('input', function() {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(function() {
+            var query = (searchInput.value || '').toLowerCase().trim();
+            var rows = table.tBodies[0].rows;
+            var visible = 0;
+            for (var i = 0; i < rows.length; i++) {
+                var show = matchRow(rows[i], query);
+                rows[i].style.display = show ? '' : 'none';
+                if (show) visible++;
+            }
+            if (countLabel) {
+                countLabel.textContent = visible + ' record' + (visible === 1 ? '' : 's') + ' found';
+            }
+        }, 120);
+    });
+})();
+</script>
 {% endblock %}

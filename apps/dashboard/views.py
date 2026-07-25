@@ -1,6 +1,7 @@
 import json
 from collections import Counter
 from datetime import datetime
+from urllib.parse import urlparse
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
@@ -395,12 +396,12 @@ def trace_connection(request):
     dest_ip = None
     result = None
     router_clients = []
+    trace_id = None
 
     if request.method == 'POST':
         destination = request.POST.get('destination', '').strip()
         if destination:
-            # Normalize URL -> hostname
-            parsed = __import__('urllib.parse').parse(destination)
+            parsed = urlparse(destination)
             hostname = parsed.hostname or parsed.path.split('/')[0] if parsed.path else destination
             if not hostname:
                 hostname = destination.replace('https://', '').replace('http://', '').split('/')[0]
@@ -411,19 +412,48 @@ def trace_connection(request):
                 dest_ip = socket.gethostbyname(destination)
             except Exception:
                 dest_ip = destination
-            result = trace_route(destination)
-            if result and result.get('hops'):
-                ConnectionTrace.objects.create(
-                    destination=destination,
-                    destination_ip=dest_ip,
-                    hops=result.get('hops'),
-                )
-            elif result and result.get('error'):
-                error = result.get('error')
-            else:
-                error = 'No hops found. Destination may be unreachable.'
 
-    recent_traces = ConnectionTrace.objects.all()[:20]
+            trace_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
+            ConnectionTrace.objects.create(
+                destination=destination,
+                destination_ip=dest_ip,
+                status=ConnectionTrace.STATUS_RUNNING,
+                trace_id=trace_id,
+            )
+
+            cache.set(f'trace_progress_{trace_id}', {'status': 'running', 'hops': []}, 300)
+
+            try:
+                import threading
+                def run_trace():
+                    try:
+                        result = trace_route(destination)
+                        hops = result.get('hops', [])
+                        cache.set(f'trace_progress_{trace_id}', {'status': 'done', 'hops': hops}, 300)
+                        ConnectionTrace.objects.filter(trace_id=trace_id).update(
+                            status=ConnectionTrace.STATUS_DONE,
+                            hops=hops,
+                            error=result.get('error'),
+                        )
+                    except Exception as e:
+                        cache.set(f'trace_progress_{trace_id}', {'status': 'error', 'hops': [], 'error': str(e)}, 300)
+                        ConnectionTrace.objects.filter(trace_id=trace_id).update(
+                            status=ConnectionTrace.STATUS_ERROR,
+                            error=str(e),
+                        )
+
+                thread = threading.Thread(target=run_trace, daemon=True)
+                thread.start()
+            except Exception as e:
+                error = str(e)
+                ConnectionTrace.objects.filter(trace_id=trace_id).update(
+                    status=ConnectionTrace.STATUS_ERROR,
+                    error=str(e),
+                )
+
+    recent_traces_qs = ConnectionTrace.objects.all()
+    recent_paginator = Paginator(recent_traces_qs, 15)
+    recent_page = recent_paginator.get_page(request.GET.get('trace_page', 1))
 
     try:
         from apps.scan.scanner import get_router_clients
@@ -432,12 +462,13 @@ def trace_connection(request):
         router_clients = []
 
     return render(request, 'trace_connection.html', {
-        'recent_traces': recent_traces,
+        'recent_traces': recent_page,
         'destination': destination,
         'dest_ip': dest_ip,
         'result': result,
         'error': error,
         'router_clients': router_clients,
+        'trace_id': trace_id,
     })
 
 
