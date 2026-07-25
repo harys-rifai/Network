@@ -7,6 +7,8 @@ Aplikasi berbasis **Django** untuk:
 - Network inventory hasil scan (IP, device, OS, brand, gateway, router, DNS, MAC, latency, open ports).
 - Peta jaringan interaktif (network mapping).
 - Riwayat port dan MAC address perangkat untuk perbandingan antar scan.
+- **Analytics** — visualisasi trace koneksi, top destinations, traffic by country, device types, OS breakdown.
+- **Connection Trace** — traceroute ke destination dengan peta hop & geolokasi.
 
 ## ⚙️ Fitur Utama
 - **Autentikasi & Role Management**
@@ -32,14 +34,36 @@ Aplikasi berbasis **Django** untuk:
   - Identifikasi duplikat IP dan MAC.
 - **Dashboard Monitoring**
   - Ringkasan jumlah device, distribusi OS & brand.
-  - Grafik interaktif dengan Chart.js.
+  - Grafik interaktif dengan Chart.js (doughnut OS distribution, brand distribution).
+  - Tabel recent scans dengan pagination.
+- **Analytics**
+  - Summary cards: total traces, unique destinations, countries reached, total hops, devices scanned, router clients.
+  - Bar chart: top destinations, device types.
+  - Doughnut chart: traffic by country, OS breakdown.
+  - Tabel: top destinations, top countries, recent traces — semua dengan pagination.
 - **Network Mapping**
   - Visualisasi topologi jaringan menggunakan vis.js.
-  - Node: IP/device.
-  - Edge: hubungan ke gateway.
+  - Node: IP/device. Edge: hubungan ke gateway.
+- **Connection Trace**
+  - Traceroute ke destination host.
+  - Simpan riwayat hop dengan IP, latency, dan geolokasi per hop.
+- **Database Maintenance**
+  - Tabel semua model dengan VACUUM FULL, Reindex, Rebuild Indexes.
+  - Checkbox per tabel / select all.
+  - Tampilkan rows, size, status vacuum/index, dan last maintenance timestamp.
 - **Auto Setup**
   - `run.sh` / `run.bat` otomatis membuat database, menjalankan migrasi, dan seed data awal.
   - Seed hanya berjalan jika tabel kosong (idempoten).
+
+## 🎨 Tema & UI
+- **Dark green-navy theme** — background `#111827`, surface `#1a2332`, card `#1e2a3a`.
+- **Aksen kuning/gold** (`#facc15`) untuk tombol, highlight, dan logo.
+- **Aksen hijau** (`#22c55e`) untuk status online, nav active, dan badge.
+- Navbar sticky dengan logo `NET-MON` + indikator hijau pulsing.
+- Card dengan colored left-border per kategori (biru, hijau, kuning, orange, ungu).
+- Chart.js bar & doughnut charts dengan palette multi-warna.
+- Tombol `+ Run Scan` / `+ New Trace` gold gradient.
+- Tabel dengan hover highlight kuning transparan.
 
 ## 🛠️ Instalasi & Menjalankan
 
@@ -104,12 +128,16 @@ project/
 │   ├── base.html
 │   ├── login.html
 │   ├── dashboard.html
+│   ├── analytics.html
 │   ├── network_map.html
+│   ├── trace_connection.html
+│   ├── router_clients.html
 │   ├── scan_list.html
 │   ├── scan_detail.html
 │   ├── scan_form.html
 │   ├── scan_trigger.html
-│   └── scan_confirm_delete.html
+│   ├── scan_confirm_delete.html
+│   └── db_maintenance.html
 ├── static/
 │   └── css/
 │       └── style.css
@@ -141,50 +169,53 @@ DATABASES = {
 5. Sistem melakukan ping sweep, live host discovery, dan port scan.
 6. Host tanpa open port tetap terdeteksi menggunakan fallback inference (hostname, MAC vendor, TTL).
 7. Dashboard menampilkan inventory & statistik.
-8. **Network Map** menampilkan topologi interaktif.
-9. **Database Maintenance** untuk VACUUM, REINDEX, dan rebuild index.
+8. **Analytics** menampilkan chart trace, destinations, countries, device & OS breakdown.
+9. **Network Map** menampilkan topologi interaktif.
+10. **Database Maintenance** untuk VACUUM, REINDEX, dan rebuild index per tabel.
 
-## 🔮 Fitur Tambahan
-- Alert & Notifikasi
-  - Kirim email/telegram jika ada device baru atau perubahan OS.
-- Scheduled Scan
-  - Gunakan Celery atau django-crontab untuk scan otomatis.
-- Export Data
-  - Export hasil scan ke CSV/Excel.
-- Integrasi SNMP
-  - Ambil informasi device lebih detail (CPU, memory, interface).
-- User Activity Log
-  - Audit trail untuk login & aksi user.
-- API Endpoint
-  - Django Rest Framework untuk integrasi dengan aplikasi lain.
-- Security Check
-  - Tambahkan port scan & vulnerability check dasar.
-- Multi-subnet Support
-  - Scan lebih dari satu range IP sekaligus.
-- Historical Trends
-  - Grafik perubahan jumlah device/OS dari waktu ke waktu.
+## 🔮 Fitur Tambahan (Roadmap)
+- Alert & Notifikasi — email/telegram jika ada device baru atau perubahan OS.
+- Scheduled Scan — Celery atau django-crontab untuk scan otomatis.
+- Export Data — Export hasil scan ke CSV/Excel.
+- Integrasi SNMP — Ambil informasi device lebih detail (CPU, memory, interface).
+- User Activity Log — Audit trail untuk login & aksi user.
+- API Endpoint — Django Rest Framework untuk integrasi eksternal.
+- Security Check — Port scan & vulnerability check dasar.
+- Multi-subnet Support — Scan lebih dari satu range IP sekaligus.
+- Historical Trends — Grafik perubahan jumlah device/OS dari waktu ke waktu.
 
-## 📸 Tampilan
-- Tema gelap elegan dengan aksen cyan.
-- Navbar sticky, card-based dashboard, tabel data yang rapi.
-- Chart.js untuk statistik OS dan brand.
-- vis.js untuk network topology.
+## 📸 Screenshots
 
-### Screenshots
-![Login](img/Screenshot%202026-07-24%20at%2002.26.35.png)
-![Dashboard](img/Screenshot%202026-07-24%20at%2002.29.13.png)
-![Scan List](img/Screenshot%202026-07-24%20at%2002.29.26.png)
-![Scan Detail](img/Screenshot%202026-07-24%20at%2002.29.33.png)
-![Scan Edit](img/Screenshot%202026-07-24%20at%2002.29.42.png)
-![Scan Delete Confirmation](img/Screenshot%202026-07-24%20at%2002.29.55.png)
-![Network Map](img/Screenshot%202026-07-24%20at%2002.31.14.png)
-![Scan Trigger](img/Screenshot%202026-07-24%20at%2002.31.41.png)
-![Scan Results Table](img/Screenshot%202026-07-24%20at%2003.25.50.png)
-![Phones Detected](img/Screenshot%202026-07-24%20at%2003.25.59.png)
-![PCs and Devices](img/Screenshot%202026-07-24%20at%2003.26.05.png)
-![Full Inventory](img/Screenshot%202026-07-24%20at%2003.26.12.png)
+| Login | Dashboard |
+|:---:|:---:|
+| <img src="img/login.png" width="380"> | <img src="img/dasboard.png" width="380"> |
+
+| Scan Results | Scanning Progress |
+|:---:|:---:|
+| <img src="img/scan.png" width="380"> | <img src="img/scan2.png" width="380"> |
+
+| Analytics | Database Maintenance |
+|:---:|:---:|
+| <img src="img/analityc.png" width="380"> | <img src="img/database.png" width="380"> |
+
+## 📝 Changelog
+
+### 2026-07-25
+- **CSS theme overhaul** — diganti dari light/white theme ke dark green-navy theme sesuai Haze dashboard sample:
+  - `--bg-root` `#F9FAFB` → `#111827`
+  - `--bg-surface` `#FFFFFF` → `#1a2332`
+  - `--bg-elevated` `#FFFFFF` → `#1e2a3a`
+  - `--text-primary` `#1C252E` → `#e2e8f0`
+  - `--accent` blue `#3b82f6` → gold `#facc15` (konsisten dengan tombol dan highlight)
+  - Shadow values diperbarui untuk dark background (opacity lebih tinggi).
+- **CSS cleanup** — dihapus duplicate `.btn-primary`, `.btn-small`, `.btn-danger` blocks dan orphaned CSS rules tanpa selector yang menyebabkan parse error.
+- **Chart box** — background diubah dari `rgba(15,23,42,0.55)` ke `var(--bg-elevated)` agar konsisten dengan card lain.
+- **Glass box** — sama, menggunakan `var(--bg-elevated)` dan `var(--border-default)`.
+- **Navbar hover** — diubah dari accent-muted ke subtle white overlay untuk kontras yang lebih baik di dark bg.
+- **ISP label/value** — duplikat rule digabung menjadi satu definisi bersih.
+- **Analytics template** — halaman analytics dengan summary cards, 4 chart (bar + doughnut), tabel top destinations/countries, dan recent traces.
 
 ## 🚀 Push ke GitHub
 ```bash
-bash push.sh  
+bash push.sh
 ```
