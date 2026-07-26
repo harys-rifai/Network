@@ -57,8 +57,14 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
+        'APP_DIRS': False,
         'OPTIONS': {
+            'loaders': [
+                ('django.template.loaders.cached.Loader', [
+                    'django.template.loaders.filesystem.Loader',
+                    'django.template.loaders.app_directories.Loader',
+                ]),
+            ],
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
@@ -83,6 +89,7 @@ DATABASES = {
         'PASSWORD': 'Password09!',
         'HOST': 'localhost',
         'PORT': '5008',
+        'CONN_MAX_AGE': 60,
     }
 }
 

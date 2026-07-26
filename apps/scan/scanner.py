@@ -1062,9 +1062,9 @@ def get_router_clients():
         session.verify = False
         login_payload = {"username": username, "password": password}
         try:
-            login_resp = session.post(f"{base}/login", json=login_payload, timeout=5)
+            login_resp = session.post(f"{base}/login", json=login_payload, timeout=2)
             if login_resp.status_code != 200:
-                login_resp = session.post(f"{base}/goform/login", json=login_payload, timeout=5)
+                login_resp = session.post(f"{base}/goform/login", json=login_payload, timeout=2)
         except Exception:
             pass
 
@@ -1078,7 +1078,7 @@ def get_router_clients():
         ]
         for ep in wifi_endpoints:
             try:
-                resp = session.get(f"{base}{ep}", timeout=5)
+                resp = session.get(f"{base}{ep}", timeout=2)
                 if resp.status_code == 200:
                     text = resp.text.strip()
                     if text.startswith('{') or text.startswith('['):
@@ -1097,7 +1097,7 @@ def get_router_clients():
         ]
         for ep in lan_endpoints:
             try:
-                resp = session.get(f"{base}{ep}", timeout=5)
+                resp = session.get(f"{base}{ep}", timeout=2)
                 if resp.status_code == 200:
                     text = resp.text.strip()
                     if text.startswith('{') or text.startswith('['):

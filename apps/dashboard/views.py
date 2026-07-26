@@ -71,10 +71,16 @@ def _resolve_sort(sort_param, order_param, default_field='scanned_at'):
 
 @login_required
 def dashboard(request):
-    total_devices = Scan.objects.count()
-    unique_ip_count = Scan.objects.values('ip').distinct().count()
-    os_stats = Scan.objects.values('os').annotate(count=Count('id')).order_by('-count')
-    brand_stats = Scan.objects.values('brand').annotate(count=Count('id')).order_by('-count')
+    cache_key = 'dashboard_stats'
+    stats = cache.get(cache_key)
+    if stats is None:
+        stats = {
+            'total_devices': Scan.objects.count(),
+            'unique_ip_count': Scan.objects.values('ip').distinct().count(),
+            'os_stats': list(Scan.objects.values('os').annotate(count=Count('id')).order_by('-count')[:20]),
+            'brand_stats': list(Scan.objects.values('brand').annotate(count=Count('id')).order_by('-count')[:20]),
+        }
+        cache.set(cache_key, stats, 300)
 
     db_sort, current_sort, current_order = _resolve_sort(
         request.GET.get('sort', 'scanned_at'),
@@ -87,35 +93,44 @@ def dashboard(request):
     ).get_page(request.GET.get('page', 1))
 
     context = {
-        'total_devices': total_devices,
-        'unique_ip_count': unique_ip_count,
-        'os_stats': os_stats,
-        'brand_stats': brand_stats,
+        'total_devices': stats['total_devices'],
+        'unique_ip_count': stats['unique_ip_count'],
+        'os_stats': stats['os_stats'],
+        'brand_stats': stats['brand_stats'],
         'recent_scans': page_obj,
         'page_obj': page_obj,
         'current_sort': current_sort,
         'current_order': current_order,
-        'os_labels': json.dumps([item['os'] for item in os_stats]),
-        'os_data': json.dumps([item['count'] for item in os_stats]),
-        'brand_labels': json.dumps([item['brand'] for item in brand_stats]),
-        'brand_data': json.dumps([item['count'] for item in brand_stats]),
+        'os_labels': json.dumps([item['os'] for item in stats['os_stats']]),
+        'os_data': json.dumps([item['count'] for item in stats['os_stats']]),
+        'brand_labels': json.dumps([item['brand'] for item in stats['brand_stats']]),
+        'brand_data': json.dumps([item['count'] for item in stats['brand_stats']]),
     }
     return render(request, 'dashboard.html', context)
 
 
 @login_required
 def network_map(request):
-    scans_qs = Scan.objects.all()
-    scans = list(scans_qs)
-    total = len(scans)
-    online = sum(1 for s in scans if s.open_ports)
-    gateway_ip = None
-    for s in scans:
-        if s.gateway:
-            gateway_ip = s.gateway
-            break
+    base_qs = Scan.objects.all()
+    total = base_qs.count()
+    online = base_qs.filter(open_ports__isnull=False).exclude(open_ports=[]).count()
 
-    device_paginator = Paginator(scans_qs, 20)
+    gateway_ip = cache.get('network_gateway_ip')
+    if gateway_ip is None:
+        gs = base_qs.filter(gateway__isnull=False).order_by('-scanned_at').first()
+        gateway_ip = gs.gateway if gs else None
+        if not gateway_ip:
+            rf = base_qs.filter(router__isnull=False).order_by('-scanned_at').first()
+            gateway_ip = rf.router if rf else None
+        if not gateway_ip:
+            gateway_ip = get_gateway()
+        cache.set('network_gateway_ip', gateway_ip or '', 300)
+
+    gateway_scan = base_qs.filter(gateway=gateway_ip).order_by('-scanned_at').first() if gateway_ip else None
+    gateway_node = None
+
+    # Only fetch a limited page of devices for the map to keep it responsive
+    device_paginator = Paginator(base_qs.order_by('-scanned_at'), 20)
     device_page = device_paginator.get_page(request.GET.get('device_page', 1))
     device_list = list(device_page.object_list)
 
@@ -124,7 +139,6 @@ def network_map(request):
 
     nodes = []
     edges = []
-    gateway_node = None
 
     for scan in device_list:
         is_gateway = gateway_ip and str(scan.ip) == str(gateway_ip)
@@ -235,20 +249,22 @@ def network_map(request):
 
 @login_required
 def router_clients(request):
-    scans = Scan.objects.all()
+    base_qs = Scan.objects.all()
 
     # Determine gateway IP safely
-    gateway_scan = scans.filter(gateway__isnull=False).order_by('-scanned_at').first()
-    gateway_ip = gateway_scan.gateway if gateway_scan else None
-
-    if not gateway_ip:
-        fallback = scans.filter(router__isnull=False).order_by('-scanned_at').first()
-        gateway_ip = fallback.router if fallback else None
-
-    if not gateway_ip:
-        gateway_ip = get_gateway()
+    gateway_ip = cache.get('network_gateway_ip')
+    if gateway_ip is None:
+        gs = base_qs.filter(gateway__isnull=False).order_by('-scanned_at').first()
+        gateway_ip = gs.gateway if gs else None
+        if not gateway_ip:
+            rf = base_qs.filter(router__isnull=False).order_by('-scanned_at').first()
+            gateway_ip = rf.router if rf else None
+        if not gateway_ip:
+            gateway_ip = get_gateway()
+        cache.set('network_gateway_ip', gateway_ip or '', 300)
 
     # Router info dict
+    gateway_scan = base_qs.filter(gateway=gateway_ip).order_by('-scanned_at').first() if gateway_ip else None
     if gateway_scan:
         router_info = {
             'ip': gateway_ip or gateway_scan.ip,
@@ -297,20 +313,20 @@ def router_clients(request):
     }
 
     # Build client queryset (exclude gateway IP if known)
-    client_qs = scans.exclude(ip=gateway_ip).order_by('-scanned_at') if gateway_ip else scans.order_by('-scanned_at')
+    client_qs = base_qs.exclude(ip=gateway_ip).order_by('-scanned_at') if gateway_ip else base_qs.order_by('-scanned_at')
     total_clients = client_qs.count()
 
     # Search filter
     search_query = request.GET.get('q', '').strip()
     if search_query:
         client_qs = client_qs.filter(
-            models.Q(ip__icontains=search_query) |
-            models.Q(device__icontains=search_query) |
-            models.Q(os__icontains=search_query) |
-            models.Q(brand__icontains=search_query) |
-            models.Q(mac_address__icontains=search_query) |
-            models.Q(isp_name__icontains=search_query) |
-            models.Q(public_ip__icontains=search_query)
+            Q(ip__icontains=search_query) |
+            Q(device__icontains=search_query) |
+            Q(os__icontains=search_query) |
+            Q(brand__icontains=search_query) |
+            Q(mac_address__icontains=search_query) |
+            Q(isp_name__icontains=search_query) |
+            Q(public_ip__icontains=search_query)
         )
     total_filtered = client_qs.count()
 
@@ -318,7 +334,6 @@ def router_clients(request):
     paginator = Paginator(client_qs, CLIENTS_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
-    from apps.scan.scanner import mac_to_vendor
     client_list = []
     for scan in page_obj.object_list:
         mac = scan.mac_address
@@ -346,6 +361,19 @@ def router_clients(request):
         'router_wan': wan_info,
         'public_ip': public_ip or 'Unknown',
         'clients': client_list,
+        'total_devices': base_qs.count(),
+        'total_clients': total_clients,
+        'total_filtered': total_filtered,
+        'page_obj': page_obj,
+        'search_query': search_query,
+    })
+
+    return render(request, 'router_clients.html', {
+        'router': router_info,
+        'router_isp': router_isp,
+        'router_wan': wan_info,
+        'public_ip': public_ip or 'Unknown',
+        'clients': client_list,
         'total_devices': scans.count(),
         'total_clients': total_clients,
         'total_filtered': total_filtered,
@@ -356,102 +384,94 @@ def router_clients(request):
 
 @login_required
 def analytics(request):
-    traces = ConnectionTrace.objects.all()
-    scans = Scan.objects.all()
-    total_traces = traces.count()
-    total_devices = scans.count()
+    cache_key = 'analytics_page'
+    ctx = cache.get(cache_key)
+    if ctx is None:
+        traces = ConnectionTrace.objects.all()
+        scans = Scan.objects.all()
 
-    # Destination analytics
-    dest_counter = Counter()
-    country_counter = Counter()
-    org_counter = Counter()
-    ip_counter = Counter()
-    total_hops = 0
+        total_traces = traces.count()
+        total_devices = scans.count()
 
-    for t in traces:
-        dest_counter[t.destination] += 1
-        if t.destination_ip:
-            ip_counter[t.destination_ip] += 1
-        hops = t.hops or []
-        total_hops += len(hops)
-        for hop in hops:
-            country = hop.get('country') or 'Unknown'
-            org = hop.get('org') or 'Unknown'
-            if country and country not in ('Local', 'LAN', 'Private'):
-                country_counter[country] += 1
-            if org:
-                org_counter[org] += 1
+        dest_counter = Counter()
+        country_counter = Counter()
+        org_counter = Counter()
+        ip_counter = Counter()
+        total_hops = 0
 
-    top_destinations = dest_counter.most_common(15)
-    top_countries = country_counter.most_common(15)
-    top_orgs = org_counter.most_common(15)
-    top_dest_ips = ip_counter.most_common(15)
+        for t in traces.only('destination', 'destination_ip', 'hops')[:500]:
+            dest_counter[t.destination] += 1
+            if t.destination_ip:
+                ip_counter[t.destination_ip] += 1
+            hops = t.hops or []
+            total_hops += len(hops)
+            for hop in hops:
+                country = hop.get('country') or 'Unknown'
+                org = hop.get('org') or 'Unknown'
+                if country and country not in ('Local', 'LAN', 'Private'):
+                    country_counter[country] += 1
+                if org:
+                    org_counter[org] += 1
 
-    world_map_data = {}
-    for country, count in country_counter.most_common():
-        code = COUNTRY_CODES.get(country)
-        if code:
-            world_map_data[code] = count
+        top_destinations = dest_counter.most_common(15)
+        top_countries = country_counter.most_common(15)
+        top_orgs = org_counter.most_common(15)
+        top_dest_ips = ip_counter.most_common(15)
 
-    # Device analytics
-    os_stats = scans.values('os').annotate(count=Count('id')).order_by('-count')
-    brand_stats = scans.values('brand').annotate(count=Count('id')).order_by('-count')
-    device_type_stats = scans.values('device').annotate(count=Count('id')).order_by('-count')
+        world_map_data = {}
+        for country, count in country_counter.most_common():
+            code = COUNTRY_CODES.get(country)
+            if code:
+                world_map_data[code] = count
 
-    # Router clients
-    router_clients = []
-    try:
-        router_clients = get_router_clients()
-    except Exception:
-        pass
+        os_stats = list(scans.values('os').annotate(count=Count('id')).order_by('-count'))
+        brand_stats = list(scans.values('brand').annotate(count=Count('id')).order_by('-count'))
+        device_type_stats = list(scans.values('device').annotate(count=Count('id')).order_by('-count'))
 
-    # Recent traces
-    recent_traces_qs = traces.order_by('-created_at')
-    recent_trace_paginator = Paginator(recent_traces_qs, 15)
-    recent_trace_page = recent_trace_paginator.get_page(request.GET.get('analytics_trace_page', 1))
+        recent_traces_qs = list(traces.order_by('-created_at')[:15])
 
-    # Paginate table data
-    dest_paginator = Paginator(top_destinations, 10)
-    dest_page = dest_paginator.get_page(request.GET.get('dest_page', 1))
+        ctx = {
+            'total_traces': total_traces,
+            'total_devices': total_devices,
+            'total_hops': total_hops,
+            'unique_destinations': len(dest_counter),
+            'unique_countries': len(country_counter),
+            'top_destinations': top_destinations,
+            'top_countries': top_countries,
+            'top_orgs': top_orgs,
+            'top_dest_ips': top_dest_ips,
+            'os_stats': os_stats,
+            'brand_stats': brand_stats,
+            'device_type_stats': device_type_stats,
+            'recent_traces': recent_traces_qs,
+            'chart_top_dest_labels': json.dumps([item[0] for item in top_destinations]),
+            'chart_top_dest_data': json.dumps([item[1] for item in top_destinations]),
+            'chart_country_labels': json.dumps([item[0] for item in top_countries]),
+            'chart_country_data': json.dumps([item[1] for item in top_countries]),
+            'chart_os_labels': json.dumps([item['os'] for item in os_stats]),
+            'chart_os_data': json.dumps([item['count'] for item in os_stats]),
+            'chart_brand_labels': json.dumps([item['brand'] for item in brand_stats]),
+            'chart_brand_data': json.dumps([item['count'] for item in brand_stats]),
+            'chart_country_map': json.dumps(world_map_data),
+        }
+        cache.set(cache_key, ctx, 300)
 
-    country_paginator = Paginator(top_countries, 10)
-    country_page = country_paginator.get_page(request.GET.get('country_page', 1))
+    router_clients = cache.get('router_clients')
+    if router_clients is None:
+        try:
+            router_clients = get_router_clients()
+            cache.set('router_clients', router_clients, 120)
+        except Exception:
+            cache.set('router_clients', [], 300)
+            router_clients = []
 
-    # Prepare chart data (use full dataset for charts)
-    chart_top_dest_labels = json.dumps([item[0] for item in top_destinations])
-    chart_top_dest_data = json.dumps([item[1] for item in top_destinations])
-    chart_country_labels = json.dumps([item[0] for item in top_countries])
-    chart_country_data = json.dumps([item[1] for item in top_countries])
-    chart_os_labels = json.dumps([item['os'] for item in os_stats])
-    chart_os_data = json.dumps([item['count'] for item in os_stats])
-    chart_brand_labels = json.dumps([item['brand'] for item in brand_stats])
-    chart_brand_data = json.dumps([item['count'] for item in brand_stats])
+    ctx = dict(ctx)
+    ctx['router_clients_count'] = len(router_clients)
+    ctx['recent_traces'] = Paginator(ctx.get('recent_traces', []), 15).get_page(request.GET.get('analytics_trace_page', 1))
+    ctx['top_destinations'] = Paginator(ctx.get('top_destinations', []), 10).get_page(request.GET.get('dest_page', 1))
+    ctx['top_countries'] = Paginator(ctx.get('top_countries', []), 10).get_page(request.GET.get('country_page', 1))
 
-    return render(request, 'analytics.html', {
-        'total_traces': total_traces,
-        'total_devices': total_devices,
-        'total_hops': total_hops,
-        'router_clients_count': len(router_clients),
-        'unique_destinations': len(dest_counter),
-        'unique_countries': len(country_counter),
-        'top_destinations': dest_page,
-        'top_countries': country_page,
-        'top_orgs': top_orgs,
-        'top_dest_ips': top_dest_ips,
-        'os_stats': os_stats,
-        'brand_stats': brand_stats,
-        'device_type_stats': device_type_stats,
-        'recent_traces': recent_trace_page,
-        'chart_top_dest_labels': chart_top_dest_labels,
-        'chart_top_dest_data': chart_top_dest_data,
-        'chart_country_labels': chart_country_labels,
-        'chart_country_data': chart_country_data,
-        'chart_os_labels': chart_os_labels,
-        'chart_os_data': chart_os_data,
-        'chart_brand_labels': chart_brand_labels,
-        'chart_brand_data': chart_brand_data,
-        'chart_country_map': json.dumps(world_map_data),
-    })
+    return render(request, 'analytics.html', ctx)
 
 
 @login_required
@@ -486,6 +506,7 @@ def trace_connection(request):
                 status=ConnectionTrace.STATUS_RUNNING,
                 trace_id=trace_id,
             )
+            cache.delete('analytics_page')
 
             cache.set(f'trace_progress_{trace_id}', {'status': 'running', 'hops': []}, 300)
 
@@ -529,11 +550,14 @@ def trace_connection(request):
     recent_paginator = Paginator(recent_traces_qs, 15)
     recent_page = recent_paginator.get_page(request.GET.get('trace_page', 1))
 
-    try:
-        from apps.scan.scanner import get_router_clients
-        router_clients = get_router_clients()
-    except Exception:
-        router_clients = []
+    router_clients = cache.get('router_clients')
+    if router_clients is None:
+        try:
+            from apps.scan.scanner import get_router_clients
+            router_clients = get_router_clients()
+            cache.set('router_clients', router_clients, 120)
+        except Exception:
+            router_clients = []
 
     return render(request, 'trace_connection.html', {
         'recent_traces': recent_page,

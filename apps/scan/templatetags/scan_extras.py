@@ -85,12 +85,16 @@ def duplicate_counts(context, field):
     Uses the full filtered_queryset (DB aggregate) for accuracy across all pages.
     Falls back to current page items if no queryset available.
     """
+    from django.core.cache import cache
     queryset = context.get('filtered_queryset')
 
     if queryset is not None:
-        # DB-level aggregation — efficient even for large datasets
         try:
-            from django.db.models import Count
+            cache_key = f'dup_counts:{field}:{hash(str(queryset.query))}'
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return cached
+
             dupes = (
                 queryset
                 .exclude(**{f'{field}__isnull': True})
@@ -99,7 +103,9 @@ def duplicate_counts(context, field):
                 .annotate(_cnt=Count('id'))
                 .filter(_cnt__gt=1)
             )
-            return {entry[field]: entry['_cnt'] for entry in dupes}
+            result = {entry[field]: entry['_cnt'] for entry in dupes}
+            cache.set(cache_key, result, 120)
+            return result
         except Exception:
             pass
 

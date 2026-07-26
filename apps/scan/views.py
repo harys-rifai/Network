@@ -208,6 +208,7 @@ def scan_edit(request, pk):
         scan.router = request.POST.get('router') or None
         scan.dns = request.POST.get('dns') or None
         scan.save()
+        cache.delete('analytics_page')
         messages.success(request, 'Scan record updated.')
         return redirect('scan_list')
     return render(request, 'scan_form.html', {'scan': scan})
@@ -218,6 +219,7 @@ def scan_delete(request, pk):
     scan = get_object_or_404(Scan, pk=pk)
     if request.method == 'POST':
         scan.delete()
+        cache.delete('analytics_page')
         messages.success(request, 'Scan record deleted.')
         return redirect('scan_list')
     return render(request, 'scan_confirm_delete.html', {'scan': scan})
@@ -335,7 +337,7 @@ def scan_trigger(request):
         if current_subnet:
             cache.set('last_scanned_subnet', current_subnet, timeout=None)
 
-        for key in ['scan_list_aggs:dup_ips', 'scan_list_aggs:dup_macs', 'scan_list_aggs:unique_ips', 'scan_list_aggs:unique_macs']:
+        for key in ['scan_list_aggs:dup_ips', 'scan_list_aggs:dup_macs', 'scan_list_aggs:unique_ips', 'scan_list_aggs:unique_macs', 'dashboard_stats', 'analytics_stats', 'analytics_page', 'router_clients']:
             cache.delete(key)
 
         messages.success(request, f'Scan complete: {added} added, {updated} updated.')
