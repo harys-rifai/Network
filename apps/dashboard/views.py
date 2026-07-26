@@ -500,15 +500,21 @@ def trace_connection(request):
                 dest_ip = destination
 
             trace_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
-            ConnectionTrace.objects.create(
-                destination=destination,
-                destination_ip=dest_ip,
-                status=ConnectionTrace.STATUS_RUNNING,
-                trace_id=trace_id,
-            )
-            cache.delete('analytics_page')
+            try:
+                ConnectionTrace.objects.create(
+                    destination=destination,
+                    destination_ip=dest_ip,
+                    status=ConnectionTrace.STATUS_RUNNING,
+                    trace_id=trace_id,
+                )
+            except Exception as e:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'error': f'Failed to start trace: {e}'}, status=400)
+                error = f'Failed to start trace: {e}'
+                trace_id = None
+                cache.delete('analytics_page')
 
-            cache.set(f'trace_progress_{trace_id}', {'status': 'running', 'hops': []}, 300)
+                cache.set(f'trace_progress_{trace_id}', {'status': 'running', 'hops': []}, 300)
 
             try:
                 import threading
