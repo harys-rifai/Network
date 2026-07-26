@@ -513,36 +513,40 @@ def trace_connection(request):
                 error = f'Failed to start trace: {e}'
                 trace_id = None
                 cache.delete('analytics_page')
+                destination = ''
+                dest_ip = None
+            else:
+                cache.delete('analytics_page')
 
                 cache.set(f'trace_progress_{trace_id}', {'status': 'running', 'hops': []}, 300)
 
-            try:
-                import threading
-                def run_trace():
-                    try:
-                        result = trace_route(destination)
-                        hops = result.get('hops', [])
-                        cache.set(f'trace_progress_{trace_id}', {'status': 'done', 'hops': hops}, 300)
-                        ConnectionTrace.objects.filter(trace_id=trace_id).update(
-                            status=ConnectionTrace.STATUS_DONE,
-                            hops=hops,
-                            error=result.get('error'),
-                        )
-                    except Exception as e:
-                        cache.set(f'trace_progress_{trace_id}', {'status': 'error', 'hops': [], 'error': str(e)}, 300)
-                        ConnectionTrace.objects.filter(trace_id=trace_id).update(
-                            status=ConnectionTrace.STATUS_ERROR,
-                            error=str(e),
-                        )
+                try:
+                    import threading
+                    def run_trace():
+                        try:
+                            result = trace_route(destination)
+                            hops = result.get('hops', [])
+                            cache.set(f'trace_progress_{trace_id}', {'status': 'done', 'hops': hops}, 300)
+                            ConnectionTrace.objects.filter(trace_id=trace_id).update(
+                                status=ConnectionTrace.STATUS_DONE,
+                                hops=hops,
+                                error=result.get('error'),
+                            )
+                        except Exception as e:
+                            cache.set(f'trace_progress_{trace_id}', {'status': 'error', 'hops': [], 'error': str(e)}, 300)
+                            ConnectionTrace.objects.filter(trace_id=trace_id).update(
+                                status=ConnectionTrace.STATUS_ERROR,
+                                error=str(e),
+                            )
 
-                thread = threading.Thread(target=run_trace, daemon=True)
-                thread.start()
-            except Exception as e:
-                error = str(e)
-                ConnectionTrace.objects.filter(trace_id=trace_id).update(
-                    status=ConnectionTrace.STATUS_ERROR,
-                    error=str(e),
-                )
+                    thread = threading.Thread(target=run_trace, daemon=True)
+                    thread.start()
+                except Exception as e:
+                    error = str(e)
+                    ConnectionTrace.objects.filter(trace_id=trace_id).update(
+                        status=ConnectionTrace.STATUS_ERROR,
+                        error=str(e),
+                    )
 
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
