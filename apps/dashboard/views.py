@@ -16,7 +16,50 @@ DASHBOARD_PAGE_SIZE = 10
 CLIENTS_PAGE_SIZE = 25
 DB_TABLE_PAGE_SIZE = 20
 
-ALLOWED_SORT_FIELDS = {'ip', 'device', 'os', 'brand', 'mac_address', 'scanned_at'}
+ALLOWED_SORT_FIELDS = {'ip', 'device', 'os', 'brand', 'mac_address', 'latency_ms', 'scanned_at'}
+
+COUNTRY_CODES = {
+    'United States': 'US', 'China': 'CN', 'Japan': 'JP', 'Germany': 'DE',
+    'United Kingdom': 'GB', 'France': 'FR', 'South Korea': 'KR', 'India': 'IN',
+    'Canada': 'CA', 'Brazil': 'BR', 'Russia': 'RU', 'Australia': 'AU',
+    'Italy': 'IT', 'Spain': 'ES', 'Mexico': 'MX', 'Indonesia': 'ID',
+    'Netherlands': 'NL', 'Sweden': 'SE', 'Poland': 'PL', 'Belgium': 'BE',
+    'Turkey': 'TR', 'Switzerland': 'CH', 'Taiwan': 'TW', 'Hong Kong': 'HK',
+    'Singapore': 'SG', 'Malaysia': 'MY', 'Thailand': 'TH', 'Vietnam': 'VN',
+    'Philippines': 'PH', 'United Arab Emirates': 'AE', 'Saudi Arabia': 'SA',
+    'South Africa': 'ZA', 'Egypt': 'EG', 'Nigeria': 'NG', 'Kenya': 'KE',
+    'Israel': 'IL', 'Ukraine': 'UA', 'Romania': 'RO', 'Bulgaria': 'BG',
+    'Croatia': 'HR', 'Czech Republic': 'CZ', 'Slovakia': 'SK', 'Hungary': 'HU',
+    'Austria': 'AT', 'Denmark': 'DK', 'Norway': 'NO', 'Finland': 'FI',
+    'Ireland': 'IE', 'Portugal': 'PT', 'Greece': 'GR', 'Luxembourg': 'LU',
+    'New Zealand': 'NZ', 'Chile': 'CL', 'Argentina': 'AR', 'Colombia': 'CO',
+    'Peru': 'PE', 'Venezuela': 'VE', 'Ecuador': 'EC', 'Bolivia': 'BO',
+    'Paraguay': 'PY', 'Uruguay': 'UY', 'Dominican Republic': 'DO',
+    'Guatemala': 'GT', 'Honduras': 'HN', 'El Salvador': 'SV',
+    'Nicaragua': 'NI', 'Costa Rica': 'CR', 'Panama': 'PA',
+    'Jamaica': 'JM', 'Trinidad and Tobago': 'TT', 'Bahamas': 'BS',
+    'Bangladesh': 'BD', 'Pakistan': 'PK', 'Sri Lanka': 'LK', 'Nepal': 'NP',
+    'Myanmar': 'MM', 'Cambodia': 'KH', 'Laos': 'LA', 'Brunei': 'BN',
+    'Mongolia': 'MN', 'Iran': 'IR', 'Iraq': 'IQ', 'Qatar': 'QA',
+    'Kuwait': 'KW', 'Bahrain': 'BH', 'Oman': 'OM', 'Jordan': 'JO',
+    'Lebanon': 'LB', 'Kazakhstan': 'KZ', 'Uzbekistan': 'UZ',
+    'Azerbaijan': 'AZ', 'Georgia': 'GE', 'Armenia': 'AM', 'Moldova': 'MD',
+    'Lithuania': 'LT', 'Latvia': 'LV', 'Estonia': 'EE', 'Slovenia': 'SI',
+    'Serbia': 'RS', 'North Macedonia': 'MK', 'Albania': 'AL',
+    'Bosnia and Herzegovina': 'BA', 'Montenegro': 'ME', 'Cyprus': 'CY',
+    'Malta': 'MT', 'Iceland': 'IS', 'Morocco': 'MA', 'Algeria': 'DZ',
+    'Tunisia': 'TN', 'Libya': 'LY', 'Sudan': 'SD', 'Ethiopia': 'ET',
+    'Somalia': 'SO', 'Djibouti': 'DJ', 'Eritrea': 'ER', 'Chad': 'TD',
+    'Niger': 'NE', 'Mali': 'ML', 'Burkina Faso': 'BF', 'Guinea': 'GN',
+    'Sierra Leone': 'SL', 'Gambia': 'GM', 'Mauritania': 'MR',
+    'Cape Verde': 'CV', 'Gabon': 'GA', 'Republic of the Congo': 'CG',
+    'Democratic Republic of the Congo': 'CD', 'Angola': 'AO',
+    'Mozambique': 'MZ', 'Zimbabwe': 'ZW', 'Zambia': 'ZM',
+    'Malawi': 'MW', 'Tanzania': 'TZ', 'Uganda': 'UG', 'Rwanda': 'RW',
+    'Madagascar': 'MG', 'Mauritius': 'MU', 'Seychelles': 'SC',
+    'Maldives': 'MV', 'Bhutan': 'BT', 'Timor-Leste': 'TL',
+    'Papua New Guinea': 'PG', 'Fiji': 'FJ',
+}
 
 
 def _resolve_sort(sort_param, order_param, default_field='scanned_at'):
@@ -344,6 +387,12 @@ def analytics(request):
     top_orgs = org_counter.most_common(15)
     top_dest_ips = ip_counter.most_common(15)
 
+    world_map_data = {}
+    for country, count in country_counter.most_common():
+        code = COUNTRY_CODES.get(country)
+        if code:
+            world_map_data[code] = count
+
     # Device analytics
     os_stats = scans.values('os').annotate(count=Count('id')).order_by('-count')
     brand_stats = scans.values('brand').annotate(count=Count('id')).order_by('-count')
@@ -401,6 +450,7 @@ def analytics(request):
         'chart_os_data': chart_os_data,
         'chart_brand_labels': chart_brand_labels,
         'chart_brand_data': chart_brand_data,
+        'chart_country_map': json.dumps(world_map_data),
     })
 
 

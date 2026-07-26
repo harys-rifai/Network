@@ -54,6 +54,14 @@
     </div>
 </div>
 
+<!-- World Map -->
+<div class="charts-row" style="margin-bottom:1rem;">
+    <div class="chart-box" style="grid-column: 1 / -1;">
+        <h2 style="margin-bottom:0.6rem;">Traffic Destination — World Map</h2>
+        <div class="map-wrap"><div id="worldMap"></div></div>
+    </div>
+</div>
+
 <!-- Charts Row 2 -->
 <div class="charts-row" style="margin-bottom:1rem;">
     <div class="chart-box chart-box--compact">
@@ -221,11 +229,61 @@
 </div>
 {% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/css/jsvectormap.min.css">
+<style>
+    .map-wrap { height: 380px; }
+    #worldMap { width: 100%; height: 100%; }
+    .jvm-tooltip { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
 (function () {
+    function initWorldMap() {
+        var container = document.getElementById('worldMap');
+        if (!container || typeof jsVectorMap === 'undefined') return;
+        new jsVectorMap({
+            selector: '#worldMap',
+            map: 'world',
+            backgroundColor: 'transparent',
+            zoomButtons: true,
+            zoomOnScroll: true,
+            regionStyle: {
+                initial: {
+                    fill: '#1e2a3a',
+                    stroke: '#374151',
+                    strokeWidth: 0.5
+                },
+                hover: {
+                    fill: '#22c55e',
+                    fillOpacity: 0.7
+                }
+            },
+            series: {
+                regions: [{
+                    values: {{ chart_country_map|safe }},
+                    scale: ['#22c55e', '#4ade80'],
+                    normalizeFunction: 'polynomial'
+                }]
+            }
+        });
+    }
+
+    function loadScript(src) {
+        return new Promise(function(resolve, reject) {
+            var s = document.createElement('script');
+            s.src = src;
+            s.crossOrigin = 'anonymous';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+
     var chartDefaults = {
-        color: '#e5e7eb',
+        color: '#94a3b8',
         borderColor: '#374151',
         font: { family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" }
     };
@@ -305,6 +363,18 @@
             createDoughnutChart('osChart', {{ chart_os_labels|safe }}, {{ chart_os_data|safe }});
         };
         document.head.appendChild(s);
+    }
+
+    if (typeof jsVectorMap !== 'undefined') {
+        initWorldMap();
+    } else {
+        loadScript('https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/js/jsvectormap.min.js').then(function() {
+            return loadScript('https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/maps/world.js');
+        }).then(function() {
+            initWorldMap();
+        }).catch(function() {
+            console.warn('jsvectermap or world map failed to load');
+        });
     }
 })();
 </script>
