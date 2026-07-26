@@ -35,43 +35,51 @@ def scan_list(request):
 
     queryset = Scan.objects.all().order_by(db_sort)
 
-    # Duplicate detection over the full queryset
-    dup_ips = (
-        queryset.values('ip')
-        .annotate(cnt=Count('id'))
-        .filter(cnt__gt=1)
-        .count()
+    cache_key_prefix = 'scan_list_aggs'
+
+    def _get_cached(key, compute_fn):
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
+        val = compute_fn()
+        cache.set(key, val, 300)
+        return val
+
+    dup_ips = _get_cached(
+        f'{cache_key_prefix}:dup_ips',
+        lambda: queryset.values('ip').annotate(cnt=Count('id')).filter(cnt__gt=1).count()
     )
-    dup_macs = (
-        queryset.exclude(mac_address__isnull=True).exclude(mac_address='')
-        .values('mac_address')
-        .annotate(cnt=Count('id'))
-        .filter(cnt__gt=1)
-        .count()
+    dup_macs = _get_cached(
+        f'{cache_key_prefix}:dup_macs',
+        lambda: queryset.exclude(mac_address__isnull=True).exclude(mac_address='').values('mac_address').annotate(cnt=Count('id')).filter(cnt__gt=1).count()
     )
-    unique_ip_count = queryset.values('ip').distinct().count()
-    unique_mac_count = (
-        queryset.exclude(mac_address__isnull=True).exclude(mac_address='')
-        .values('mac_address').distinct().count()
+    unique_ip_count = _get_cached(
+        f'{cache_key_prefix}:unique_ips',
+        lambda: queryset.values('ip').distinct().count()
+    )
+    unique_mac_count = _get_cached(
+        f'{cache_key_prefix}:unique_macs',
+        lambda: queryset.exclude(mac_address__isnull=True).exclude(mac_address='').values('mac_address').distinct().count()
     )
 
     paginator = Paginator(queryset, ITEMS_PER_PAGE)
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
+    base_qs = Scan.objects.all()
+
     # Cache gateway/public/isp/wan to avoid repeated shell/network calls
-    scans = Scan.objects.all()
     gateway_ip = cache.get('network_gateway_ip')
     if gateway_ip is None:
-        gs = scans.filter(gateway__isnull=False).order_by('-scanned_at').first()
+        gs = base_qs.filter(gateway__isnull=False).order_by('-scanned_at').first()
         gateway_ip = gs.gateway if gs else None
         if not gateway_ip:
-            rf = scans.filter(router__isnull=False).order_by('-scanned_at').first()
+            rf = base_qs.filter(router__isnull=False).order_by('-scanned_at').first()
             gateway_ip = rf.router if rf else None
         if not gateway_ip:
             gateway_ip = get_gateway()
         cache.set('network_gateway_ip', gateway_ip or '', 300)
 
-    gateway_scan = scans.filter(gateway=gateway_ip).order_by('-scanned_at').first() if gateway_ip else None
+    gateway_scan = base_qs.filter(gateway=gateway_ip).order_by('-scanned_at').first() if gateway_ip else None
     if gateway_scan:
         router_info = {
             'ip': gateway_ip or gateway_scan.ip,
@@ -119,7 +127,7 @@ def scan_list(request):
     }
 
     # Build client queryset (exclude gateway IP if known)
-    client_qs = scans.exclude(ip=gateway_ip).order_by('-scanned_at') if gateway_ip else scans.order_by('-scanned_at')
+    client_qs = base_qs.exclude(ip=gateway_ip).order_by('-scanned_at') if gateway_ip else base_qs.order_by('-scanned_at')
     total_clients = client_qs.count()
 
     # Search filter
@@ -326,6 +334,9 @@ def scan_trigger(request):
 
         if current_subnet:
             cache.set('last_scanned_subnet', current_subnet, timeout=None)
+
+        for key in ['scan_list_aggs:dup_ips', 'scan_list_aggs:dup_macs', 'scan_list_aggs:unique_ips', 'scan_list_aggs:unique_macs']:
+            cache.delete(key)
 
         messages.success(request, f'Scan complete: {added} added, {updated} updated.')
         return redirect('scan_list')
