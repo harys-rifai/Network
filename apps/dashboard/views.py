@@ -399,7 +399,7 @@ def analytics(request):
         ip_counter = Counter()
         total_hops = 0
 
-        for t in traces.only('destination', 'destination_ip', 'hops')[:500]:
+        for t in traces.only('destination', 'destination_ip', 'hops')[:100]:
             dest_counter[t.destination] += 1
             if t.destination_ip:
                 ip_counter[t.destination_ip] += 1
@@ -413,10 +413,10 @@ def analytics(request):
                 if org:
                     org_counter[org] += 1
 
-        top_destinations = dest_counter.most_common(15)
-        top_countries = country_counter.most_common(15)
-        top_orgs = org_counter.most_common(15)
-        top_dest_ips = ip_counter.most_common(15)
+        top_destinations = dest_counter.most_common(10)
+        top_countries = country_counter.most_common(10)
+        top_orgs = org_counter.most_common(10)
+        top_dest_ips = ip_counter.most_common(10)
 
         world_map_data = {}
         for country, count in country_counter.most_common():
@@ -424,11 +424,11 @@ def analytics(request):
             if code:
                 world_map_data[code] = count
 
-        os_stats = list(scans.values('os').annotate(count=Count('id')).order_by('-count'))
-        brand_stats = list(scans.values('brand').annotate(count=Count('id')).order_by('-count'))
-        device_type_stats = list(scans.values('device').annotate(count=Count('id')).order_by('-count'))
+        os_stats = list(scans.values('os').annotate(count=Count('id')).order_by('-count')[:10])
+        brand_stats = list(scans.values('brand').annotate(count=Count('id')).order_by('-count')[:10])
+        device_type_stats = list(scans.values('device').annotate(count=Count('id')).order_by('-count')[:10])
 
-        recent_traces_qs = list(traces.order_by('-created_at')[:15])
+        recent_traces_qs = list(traces.order_by('-created_at')[:8])
 
         ctx = {
             'total_traces': total_traces,
@@ -467,9 +467,9 @@ def analytics(request):
 
     ctx = dict(ctx)
     ctx['router_clients_count'] = len(router_clients)
-    ctx['recent_traces'] = Paginator(ctx.get('recent_traces', []), 15).get_page(request.GET.get('analytics_trace_page', 1))
-    ctx['top_destinations'] = Paginator(ctx.get('top_destinations', []), 10).get_page(request.GET.get('dest_page', 1))
-    ctx['top_countries'] = Paginator(ctx.get('top_countries', []), 10).get_page(request.GET.get('country_page', 1))
+    ctx['recent_traces'] = Paginator(ctx.get('recent_traces', []), 8).get_page(request.GET.get('analytics_trace_page', 1))
+    ctx['top_destinations'] = Paginator(ctx.get('top_destinations', []), 8).get_page(request.GET.get('dest_page', 1))
+    ctx['top_countries'] = Paginator(ctx.get('top_countries', []), 8).get_page(request.GET.get('country_page', 1))
 
     return render(request, 'analytics.html', ctx)
 
