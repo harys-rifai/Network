@@ -168,15 +168,18 @@ def _get_active_interface_windows():
     if current:
         interfaces[current] = curr_lines
 
-    skip = {'Loopback Pseudo-Interface 1'}
+    skip_contains = ('vEthernet', 'VMware', 'VirtualBox', 'Docker', 'Hyper-V', 'Teredo', 'ISATAP')
+    candidates = []
     for name, block in interfaces.items():
-        if name in skip:
+        if any(p in name for p in skip_contains):
+            continue
+        if 'media disconnected' in ' '.join(block).lower():
             continue
         ip = None
         netmask = None
         for bline in block:
             bline = bline.strip()
-            if 'IPv4 Address' in bline or 'IPv4 Address' in bline:
+            if 'IPv4 Address' in bline:
                 parts = bline.split(':')
                 if len(parts) >= 2:
                     ip = parts[1].strip().replace('(Preferred)', '')
@@ -184,8 +187,15 @@ def _get_active_interface_windows():
                 parts = bline.split(':')
                 if len(parts) >= 2:
                     netmask = parts[1].strip()
-        if ip and netmask and not ip.startswith('127.'):
-            return name, ip, netmask
+        if ip and netmask and not ip.startswith('127.') and not ip.startswith('169.254.'):
+            candidates.append((name, ip, netmask))
+
+    if candidates:
+        for name, ip, netmask in candidates:
+            if 'wi-fi' in name.lower() or 'wireless' in name.lower() or 'ethernet' in name.lower():
+                return name, ip, netmask
+        return candidates[0]
+
     return None, None, None
 
 
@@ -324,17 +334,17 @@ def ping_host(ip):
     try:
         if system == 'windows':
             out = subprocess.check_output(
-                ['ping', '-n', '1', '-w', '300', str(ip)],
+                ['ping', '-n', '1', '-w', '150', str(ip)],
                 stderr=subprocess.DEVNULL,
                 text=True,
-                timeout=1,
+                timeout=0.5,
             )
         else:
             out = subprocess.check_output(
                 ['ping', '-c', '1', '-W', '1', str(ip)],
                 stderr=subprocess.DEVNULL,
                 text=True,
-                timeout=1,
+                timeout=0.5,
             )
         ttl = None
         m = re.search(r'ttl=(\d+)', out, re.IGNORECASE)
@@ -345,7 +355,7 @@ def ping_host(ip):
         return False, None
 
 
-def _probe_port(ip, port, timeout=0.3):
+def _probe_port(ip, port, timeout=0.15):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
@@ -359,9 +369,12 @@ def _probe_port(ip, port, timeout=0.3):
 def scan_host(ip, ports=(22, 80, 443, 445, 139, 3389, 53, 5353, 5900, 3306, 5432, 6379, 2375, 9200, 8080, 8443, 1883, 8883, 554, 8000, 9090), arp_cache=None):
     hostname = None
     try:
+        socket.setdefaulttimeout(0.5)
         hostname = socket.gethostbyaddr(str(ip))[0]
     except Exception:
         pass
+    finally:
+        socket.setdefaulttimeout(None)
     mac = get_mac_from_arp(str(ip), arp_cache)
     return {
         'ip': str(ip),
@@ -877,22 +890,40 @@ def _get_wan_interface_info_windows():
         if current:
             interfaces[current] = curr_lines
 
-        skip = {'Loopback Pseudo-Interface 1'}
+        skip_contains = ('Loopback', 'vEthernet', 'VMware', 'VirtualBox', 'Docker', 'Hyper-V', 'Teredo', 'ISATAP')
+        candidates = []
         for name, block in interfaces.items():
-            if name in skip:
+            if any(p in name for p in skip_contains):
                 continue
-            has_ip = False
+            if 'media disconnected' in ' '.join(block).lower():
+                continue
+            ip = None
+            netmask = None
             for bline in block:
                 bline = bline.strip()
-                if bline.startswith('IPv4 Address') and ':' in bline:
-                    parts = bline.split(':', 1)
-                    if len(parts) == 2 and parts[1].strip() and not parts[1].strip().startswith('127.'):
-                        has_ip = True
-            if has_ip:
-                return {
-                    'interface': name,
-                    'media': 'Ethernet/Wi-Fi',
-                }
+                if 'IPv4 Address' in bline:
+                    parts = bline.split(':')
+                    if len(parts) >= 2:
+                        ip = parts[1].strip().replace('(Preferred)', '')
+                if 'Subnet Mask' in bline:
+                    parts = bline.split(':')
+                    if len(parts) >= 2:
+                        netmask = parts[1].strip()
+            if ip and netmask and not ip.startswith('127.') and not ip.startswith('169.254.'):
+                candidates.append((name, ip, netmask))
+
+        if candidates:
+            for name, ip, netmask in candidates:
+                if 'wi-fi' in name.lower() or 'wireless' in name.lower() or 'ethernet' in name.lower():
+                    return {
+                        'interface': name,
+                        'media': 'Ethernet/Wi-Fi',
+                    }
+            name, ip, netmask = candidates[0]
+            return {
+                'interface': name,
+                'media': 'Ethernet/Wi-Fi',
+            }
     except Exception:
         pass
     return {}
